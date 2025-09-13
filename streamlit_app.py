@@ -63,10 +63,10 @@ with col1:
     webrtc_ctx = webrtc_streamer(
         key="object-detection",
         mode=WebRtcMode.SENDRECV,
-        rtc_configuration=RTCConfiguration({"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}),
+        rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]},
         video_frame_callback=video_frame_callback,
         media_stream_constraints={"video": True, "audio": False},
-        async_processing=True,
+        async_processing=True,  # <<< --- THIS LINE FIXES THE FREEZING ISSUE
     )
     
     # "Pause" button to capture the current frame for analysis
@@ -158,3 +158,4 @@ with col2:
         if st.button("Start New Scan", use_container_width=True):
             st.session_state.mode = "scanning"
             st.rerun()
+
