@@ -5,7 +5,7 @@ from ultralytics import YOLO
 from streamlit_webrtc import webrtc_streamer, WebRtcMode, RTCConfiguration
 from PIL import Image
 
-# --- Import your custom utility modules ---
+# --- Import custom utility modules ---
 import depth_utils
 import dimension_utils
 import hologram_utils
@@ -49,6 +49,7 @@ with col1:
         media_stream_constraints={"video": True, "audio": False},
         async_processing=True,
     )
+
     if ctx.video_receiver and st.session_state.mode == "scanning":
         if st.button("Pause Feed to Select & Measure", use_container_width=True):
             try:
@@ -70,6 +71,7 @@ with col2:
             detected_names = {seg_model.names[int(cls)] for cls in st.session_state.detection_results.boxes.cls}
             for name in detected_names:
                 st.markdown(f"- {name.capitalize()}")
+
     elif st.session_state.mode == "paused":
         results = st.session_state.detection_results
         if not results or len(results.boxes) == 0:
@@ -82,11 +84,13 @@ with col2:
             object_names = [seg_model.names[int(cls)] for cls in results.boxes.cls]
             selected_obj_name = st.selectbox("Select Object Tag:", options=list(set(object_names)))
             st.session_state.selected_obj_idx = object_names.index(selected_obj_name)
+
             st.divider()
             st.subheader("Calibration")
             st.warning("Manual calibration is required for now.")
             ref_width_cm = st.number_input("Enter a known real-world width (cm) for a reference object:", min_value=0.1, value=8.56, key="calib_cm")
             ref_width_px = st.number_input("Enter the corresponding width in pixels:", min_value=1, value=300, key="calib_px")
+
             if st.button("Measure Selected Object", use_container_width=True):
                 with st.spinner("Calculating..."):
                     pixels_per_cm = ref_width_px / ref_width_cm
@@ -97,9 +101,11 @@ with col2:
                     st.session_state.dimensions = dims
                     st.session_state.mode = "measured"
                     st.rerun()
+
             if st.button("Resume Scanning"):
                 st.session_state.mode = "scanning"
                 st.rerun()
+
     elif st.session_state.mode == "measured":
         st.success("Measurement complete!")
         dims = st.session_state.dimensions
@@ -108,14 +114,16 @@ with col2:
             st.metric("Width", f"{dims['width_cm']:.2f} cm")
             st.metric("Height", f"{dims['height_cm']:.2f} cm")
             st.metric("Est. Depth", f"{dims['depth_cm']:.2f} cm")
-        if st.button("Show Holographic View", type="primary", use_container_width=True):
-            with st.spinner("Generating 3D view..."):
-                results = st.session_state.detection_results
-                mask = results.masks.data[st.session_state.selected_obj_idx].cpu().numpy()
-                pil_img = Image.fromarray(cv2.cvtColor(st.session_state.captured_frame, cv2.COLOR_BGR2RGB))
-                depth_map = depth_utils.get_depth_map(pil_img, depth_model, depth_transform, device)
-                fig = hologram_utils.create_holographic_view(mask, depth_map)
-                st.plotly_chart(fig, use_container_width=True)
+
+            if st.button("Show Holographic View", type="primary", use_container_width=True):
+                with st.spinner("Generating 3D view..."):
+                    results = st.session_state.detection_results
+                    mask = results.masks.data[st.session_state.selected_obj_idx].cpu().numpy()
+                    pil_img = Image.fromarray(cv2.cvtColor(st.session_state.captured_frame, cv2.COLOR_BGR2RGB))
+                    depth_map = depth_utils.get_depth_map(pil_img, depth_model, depth_transform, device)
+                    fig = hologram_utils.create_holographic_view(mask, depth_map)
+                    st.plotly_chart(fig, use_container_width=True)
+
         if st.button("Start New Scan"):
             st.session_state.mode = "scanning"
             st.rerun()
