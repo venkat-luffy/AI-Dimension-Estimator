@@ -7,6 +7,7 @@ from streamlit_webrtc import webrtc_streamer, WebRtcMode, RTCConfiguration
 from PIL import Image
 import torch
 import logging
+import time
 
 # --- Import custom utility modules ---
 import depth_utils
@@ -19,39 +20,68 @@ st.set_page_config(page_title="AI Dimension Estimator", layout="wide")
 # --- Suppress warnings ---
 logging.getLogger("ultralytics").setLevel(logging.WARNING)
 
-# --- Model Loading with Error Handling ---
+# --- Model Loading with Rate Limit Handling ---
 @st.cache_resource
 def load_all_models():
+    models_loaded = {"yolo": False, "depth": False}
+    seg_model = None
+    depth_model = None
+    depth_transform = None
+    device = torch.device("cpu")  # Force CPU for Streamlit Cloud
+    
     try:
-        # Try different model paths
+        # Load YOLOv8 model
         model_paths = ["yolov8n-seg.pt", "model/yolov8n-seg.pt", "./yolov8n-seg.pt"]
-        seg_model = None
         
         for path in model_paths:
             try:
                 seg_model = YOLO(path)
                 st.success(f"✅ YOLOv8 model loaded from: {path}")
+                models_loaded["yolo"] = True
                 break
             except Exception as e:
                 st.warning(f"❌ Failed to load from {path}: {str(e)}")
                 continue
         
         if seg_model is None:
-            st.error("🚨 Could not load YOLOv8 model. Downloading...")
-            seg_model = YOLO("yolov8n-seg.pt")  # This will auto-download
+            try:
+                seg_model = YOLO("yolov8n-seg.pt")  # Auto-download
+                models_loaded["yolo"] = True
+                st.success("✅ YOLOv8 model downloaded and loaded")
+            except Exception as e:
+                st.error(f"❌ Failed to download YOLOv8: {str(e)}")
         
-        # Load depth model
-        depth_model, depth_transform, device = depth_utils.load_depth_model()
-        st.success("✅ MiDaS depth model loaded successfully")
+        # Load depth model with retry logic
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                st.info(f"🔄 Loading MiDaS model (attempt {attempt + 1}/{max_retries})...")
+                depth_model, depth_transform, device = depth_utils.load_depth_model()
+                models_loaded["depth"] = True
+                st.success("✅ MiDaS depth model loaded successfully")
+                break
+            except Exception as e:
+                if "rate limit" in str(e).lower() or "403" in str(e):
+                    if attempt < max_retries - 1:
+                        wait_time = (attempt + 1) * 10
+                        st.warning(f"⏳ Rate limit hit. Waiting {wait_time} seconds before retry...")
+                        time.sleep(wait_time)
+                    else:
+                        st.error("❌ MiDaS model failed to load due to rate limits. Depth estimation will be disabled.")
+                        st.info("💡 **Alternative:** The app will work with basic object detection and bounding box measurements.")
+                        break
+                else:
+                    st.error(f"❌ MiDaS loading error: {str(e)}")
+                    break
         
-        return seg_model, depth_model, depth_transform, device
+        return seg_model, depth_model, depth_transform, device, models_loaded
     
     except Exception as e:
-        st.error(f"🚨 Error loading models: {str(e)}")
-        return None, None, None, None
+        st.error(f"🚨 Critical error loading models: {str(e)}")
+        return None, None, None, device, models_loaded
 
 # Load models
-seg_model, depth_model, depth_transform, device = load_all_models()
+seg_model, depth_model, depth_transform, device, models_loaded = load_all_models()
 
 # --- Session State Initialization ---
 if "mode" not in st.session_state:
@@ -78,7 +108,7 @@ def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
         img = frame.to_ndarray(format="bgr24")
         latest_frame = img.copy()
         
-        # Run YOLO detection with CPU only for cloud compatibility
+        # Run YOLO detection
         results = seg_model.predict(source=img, conf=0.4, verbose=False, device='cpu')
         
         if results and len(results) > 0:
@@ -99,13 +129,38 @@ def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
         st.session_state.processing_error = str(e)
         return frame
 
+# --- Basic dimension calculation without depth (fallback) ---
+def calculate_basic_dimensions(mask, pixels_per_cm):
+    """Calculate basic dimensions using only bounding box (no depth estimation)"""
+    try:
+        x, y, w, h = cv2.boundingRect(mask)
+        width_cm = w / pixels_per_cm
+        height_cm = h / pixels_per_cm
+        
+        # Estimate depth as average of width and height (rough approximation)
+        estimated_depth_cm = (width_cm + height_cm) / 2
+        volume_cm3 = width_cm * height_cm * estimated_depth_cm
+        
+        return {
+            "width_cm": round(width_cm, 2),
+            "height_cm": round(height_cm, 2),
+            "depth_cm": round(estimated_depth_cm, 2),
+            "volume_cm3": round(volume_cm3, 2)
+        }
+    except Exception as e:
+        st.error(f"Error in basic calculation: {str(e)}")
+        return None
+
 # --- Main App Layout ---
 st.title("🤖 AI-Based Real-Time Object Dimension Estimator")
 
-# Check if models loaded successfully
-if seg_model is None:
-    st.error("❌ Models failed to load. Please check your installation and try again.")
+# Show model loading status
+if not models_loaded["yolo"]:
+    st.error("❌ YOLOv8 model failed to load. App cannot function.")
     st.stop()
+elif not models_loaded["depth"]:
+    st.warning("⚠️ Depth model failed to load. Using basic dimension estimation.")
+    st.info("💡 The app will work with 2D measurements and estimated depth values.")
 
 # --- Layout ---
 col1, col2 = st.columns([2, 1])
@@ -117,7 +172,7 @@ with col1:
     status_placeholder = st.empty()
     
     try:
-        # Simplified WebRTC Streamer for Cloud Compatibility
+        # Simplified WebRTC Streamer
         ctx = webrtc_streamer(
             key="ai-dimension-estimator",
             mode=WebRtcMode.SENDRECV,
@@ -142,7 +197,7 @@ with col1:
             
     except Exception as e:
         st.error(f"❌ WebRTC Error: {str(e)}")
-        st.info("💡 **Alternative Solution:** Use the file upload option below if camera doesn't work")
+        st.info("💡 **Alternative Solution:** Use the file upload option below")
         
         # File upload alternative
         uploaded_file = st.file_uploader("Upload an image for object detection", type=['jpg', 'jpeg', 'png'])
@@ -166,10 +221,6 @@ with col1:
                 st.session_state.captured_frame = img_array
                 st.session_state.detection_results = result
                 st.session_state.mode = "paused"
-    
-    # Show processing errors
-    if st.session_state.processing_error:
-        st.error(f"Processing Error: {st.session_state.processing_error}")
 
 with col2:
     st.subheader("🎛️ Controls & Results")
@@ -237,7 +288,10 @@ with col2:
                 
                 # Calibration section
                 st.subheader("📏 Calibration")
-                st.warning("⚠️ Manual calibration required for accurate measurements")
+                if not models_loaded["depth"]:
+                    st.warning("⚠️ Using basic 2D measurements (no depth model)")
+                else:
+                    st.info("ℹ️ Manual calibration required for accurate measurements")
                 
                 ref_width_cm = st.number_input(
                     "Enter known width of reference object (cm):", 
@@ -261,7 +315,7 @@ with col2:
                         try:
                             pixels_per_cm = ref_width_px / ref_width_cm
                             
-                            # Get mask and depth
+                            # Get mask
                             if hasattr(results, 'masks') and results.masks is not None:
                                 mask = results.masks.data[st.session_state.selected_obj_idx].cpu().numpy()
                                 mask = (mask * 255).astype(np.uint8)
@@ -272,12 +326,15 @@ with col2:
                                 x1, y1, x2, y2 = bbox.astype(int)
                                 mask[y1:y2, x1:x2] = 255
                             
-                            # Generate depth map
-                            pil_img = Image.fromarray(cv2.cvtColor(st.session_state.captured_frame, cv2.COLOR_BGR2RGB))
-                            depth_map = depth_utils.get_depth_map(pil_img, depth_model, depth_transform, device)
-                            
                             # Calculate dimensions
-                            dims = dimension_utils.get_dimensions_with_depth(mask, depth_map, pixels_per_cm)
+                            if models_loaded["depth"]:
+                                # Use depth estimation if available
+                                pil_img = Image.fromarray(cv2.cvtColor(st.session_state.captured_frame, cv2.COLOR_BGR2RGB))
+                                depth_map = depth_utils.get_depth_map(pil_img, depth_model, depth_transform, device)
+                                dims = dimension_utils.get_dimensions_with_depth(mask, depth_map, pixels_per_cm)
+                            else:
+                                # Use basic calculation
+                                dims = calculate_basic_dimensions(mask, pixels_per_cm)
                             
                             if dims:
                                 st.session_state.dimensions = dims
@@ -301,6 +358,12 @@ with col2:
         if dims:
             st.success("✅ Measurement Complete!")
             
+            # Show measurement type
+            if not models_loaded["depth"]:
+                st.info("📏 Basic 2D measurements (estimated depth)")
+            else:
+                st.info("📐 Advanced measurements with depth estimation")
+            
             st.subheader("📊 Dimension Results")
             
             # Display measurements
@@ -312,28 +375,31 @@ with col2:
                 st.metric("Estimated Depth", f"{dims['depth_cm']:.2f} cm")
                 st.metric("Volume", f"{dims['volume_cm3']:.2f} cm³")
             
-            # Hologram button
-            if st.button("🌟 Show Holographic View", type="primary", use_container_width=True):
-                with st.spinner("🎭 Generating 3D hologram..."):
-                    try:
-                        results = st.session_state.detection_results
-                        if hasattr(results, 'masks') and results.masks is not None:
-                            mask = results.masks.data[st.session_state.selected_obj_idx].cpu().numpy()
-                        else:
-                            # Fallback mask
-                            bbox = results.boxes.xyxy[st.session_state.selected_obj_idx].cpu().numpy()
-                            mask = np.zeros((st.session_state.captured_frame.shape[0], st.session_state.captured_frame.shape[1]))
-                            x1, y1, x2, y2 = bbox.astype(int)
-                            mask[y1:y2, x1:x2] = 1
-                        
-                        pil_img = Image.fromarray(cv2.cvtColor(st.session_state.captured_frame, cv2.COLOR_BGR2RGB))
-                        depth_map = depth_utils.get_depth_map(pil_img, depth_model, depth_transform, device)
-                        
-                        fig = hologram_utils.create_holographic_view(mask, depth_map)
-                        st.plotly_chart(fig, use_container_width=True)
-                        
-                    except Exception as e:
-                        st.error(f"❌ Hologram generation error: {str(e)}")
+            # Hologram button (only if depth model is available)
+            if models_loaded["depth"]:
+                if st.button("🌟 Show Holographic View", type="primary", use_container_width=True):
+                    with st.spinner("🎭 Generating 3D hologram..."):
+                        try:
+                            results = st.session_state.detection_results
+                            if hasattr(results, 'masks') and results.masks is not None:
+                                mask = results.masks.data[st.session_state.selected_obj_idx].cpu().numpy()
+                            else:
+                                # Fallback mask
+                                bbox = results.boxes.xyxy[st.session_state.selected_obj_idx].cpu().numpy()
+                                mask = np.zeros((st.session_state.captured_frame.shape[0], st.session_state.captured_frame.shape[1]))
+                                x1, y1, x2, y2 = bbox.astype(int)
+                                mask[y1:y2, x1:x2] = 1
+                            
+                            pil_img = Image.fromarray(cv2.cvtColor(st.session_state.captured_frame, cv2.COLOR_BGR2RGB))
+                            depth_map = depth_utils.get_depth_map(pil_img, depth_model, depth_transform, device)
+                            
+                            fig = hologram_utils.create_holographic_view(mask, depth_map)
+                            st.plotly_chart(fig, use_container_width=True)
+                            
+                        except Exception as e:
+                            st.error(f"❌ Hologram generation error: {str(e)}")
+            else:
+                st.info("🌟 Holographic view requires depth model (currently unavailable)")
         
         # New scan button
         if st.button("🆕 Start New Scan", use_container_width=True):
@@ -347,17 +413,9 @@ with col2:
 
 # --- Footer ---
 st.divider()
-st.markdown("**🔧 Troubleshooting Tips:**")
-st.markdown("• **Camera Issues?** Try the image upload option above")
+st.markdown("**🔧 Status & Tips:**")
+st.markdown(f"• **YOLOv8 Detection:** {'✅ Active' if models_loaded['yolo'] else '❌ Failed'}")
+st.markdown(f"• **Depth Estimation:** {'✅ Active' if models_loaded['depth'] else '⚠️ Basic mode only'}")
 st.markdown("• Ensure good lighting for better detection")
-st.markdown("• Point camera directly at objects")  
-st.markdown("• Allow camera permissions when prompted")
-st.markdown("• Refresh page if camera doesn't connect")
-
-# --- Debug info for development ---
-if st.checkbox("Show Debug Info"):
-    st.write("Session State:", st.session_state)
-    if st.session_state.detection_results:
-        st.write("Detection Results Available:", True)
-    else:
-        st.write("Detection Results Available:", False)
+st.markdown("• Point camera directly at objects")
+st.markdown("• **Camera Issues?** Try the image upload option")
