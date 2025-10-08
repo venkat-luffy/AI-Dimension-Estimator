@@ -6,6 +6,7 @@ from ultralytics import YOLO
 from streamlit_webrtc import webrtc_streamer, WebRtcMode, RTCConfiguration
 from PIL import Image
 import torch
+import logging
 
 # --- Import custom utility modules ---
 import depth_utils
@@ -14,6 +15,9 @@ import hologram_utils
 
 # --- Configuration ---
 st.set_page_config(page_title="AI Dimension Estimator", layout="wide")
+
+# --- Suppress warnings ---
+logging.getLogger("ultralytics").setLevel(logging.WARNING)
 
 # --- Model Loading with Error Handling ---
 @st.cache_resource
@@ -58,11 +62,11 @@ if "mode" not in st.session_state:
     st.session_state.dimensions = None
     st.session_state.processing_error = None
 
-# --- Global variables for frame processing ---
+# --- Global variables ---
 latest_frame = None
 processing_active = True
 
-# --- Improved Frame Processing with Error Handling ---
+# --- Improved Frame Processing ---
 def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
     global latest_frame, processing_active
     
@@ -74,7 +78,7 @@ def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
         img = frame.to_ndarray(format="bgr24")
         latest_frame = img.copy()
         
-        # Run YOLO detection
+        # Run YOLO detection with CPU only for cloud compatibility
         results = seg_model.predict(source=img, conf=0.4, verbose=False, device='cpu')
         
         if results and len(results) > 0:
@@ -83,7 +87,7 @@ def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
             # Draw detection results
             annotated_img = result.plot()
             
-            # Store results in session state if in scanning mode
+            # Store results in session state
             if st.session_state.mode == "scanning":
                 st.session_state.detection_results = result
             
@@ -94,14 +98,6 @@ def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
     except Exception as e:
         st.session_state.processing_error = str(e)
         return frame
-
-# --- RTC Configuration ---
-RTC_CONFIGURATION = RTCConfiguration({
-    "iceServers": [
-        {"urls": ["stun:stun.l.google.com:19302"]},
-        {"urls": ["stun:stun1.l.google.com:19302"]},
-    ]
-})
 
 # --- Main App Layout ---
 st.title("🤖 AI-Based Real-Time Object Dimension Estimator")
@@ -120,31 +116,56 @@ with col1:
     # Show processing status
     status_placeholder = st.empty()
     
-    # WebRTC Streamer with improved configuration
-    ctx = webrtc_streamer(
-        key="ai-dimension-estimator",
-        mode=WebRtcMode.SENDRECV,
-        rtc_configuration=RTC_CONFIGURATION,
-        video_frame_callback=video_frame_callback,
-        media_stream_constraints={
-            "video": {
-                "width": {"min": 640, "ideal": 1280},
-                "height": {"min": 480, "ideal": 720},
-                "frameRate": {"min": 10, "ideal": 30}
-            },
-            "audio": False
-        },
-        async_processing=True,
-        key_suffix="main",
-    )
-    
-    # Connection status
-    if ctx.state.playing:
-        status_placeholder.success("🟢 Camera Connected - Live Detection Active")
-    elif ctx.state.signalling:
-        status_placeholder.info("🟡 Connecting to Camera...")
-    else:
-        status_placeholder.warning("🔴 Camera Disconnected")
+    try:
+        # Simplified WebRTC Streamer for Cloud Compatibility
+        ctx = webrtc_streamer(
+            key="ai-dimension-estimator",
+            mode=WebRtcMode.SENDRECV,
+            rtc_configuration=RTCConfiguration({
+                "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
+            }),
+            video_frame_callback=video_frame_callback,
+            media_stream_constraints={"video": True, "audio": False},
+            async_processing=True,
+        )
+        
+        # Connection status
+        if hasattr(ctx, 'state'):
+            if ctx.state.playing:
+                status_placeholder.success("🟢 Camera Connected - Live Detection Active")
+            elif ctx.state.signalling:
+                status_placeholder.info("🟡 Connecting to Camera...")
+            else:
+                status_placeholder.warning("🔴 Camera Disconnected - Click START to begin")
+        else:
+            status_placeholder.info("📷 Ready to connect camera")
+            
+    except Exception as e:
+        st.error(f"❌ WebRTC Error: {str(e)}")
+        st.info("💡 **Alternative Solution:** Use the file upload option below if camera doesn't work")
+        
+        # File upload alternative
+        uploaded_file = st.file_uploader("Upload an image for object detection", type=['jpg', 'jpeg', 'png'])
+        if uploaded_file is not None:
+            # Process uploaded image
+            image = Image.open(uploaded_file)
+            img_array = np.array(image)
+            
+            # Convert RGB to BGR for OpenCV
+            if len(img_array.shape) == 3:
+                img_array = cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR)
+            
+            # Run detection
+            results = seg_model.predict(source=img_array, conf=0.4, verbose=False)
+            if results and len(results) > 0:
+                result = results[0]
+                annotated_img = result.plot()
+                st.image(cv2.cvtColor(annotated_img, cv2.COLOR_BGR2RGB), caption="Detection Results")
+                
+                # Store results
+                st.session_state.captured_frame = img_array
+                st.session_state.detection_results = result
+                st.session_state.mode = "paused"
     
     # Show processing errors
     if st.session_state.processing_error:
@@ -207,7 +228,7 @@ with col2:
             if selected_obj_name:
                 st.session_state.selected_obj_idx = object_names.index(selected_obj_name)
                 
-                # Category determination (you can expand this)
+                # Category determination
                 living_objects = ['person', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe']
                 category = "Living" if selected_obj_name.lower() in living_objects else "Non-living"
                 st.write(f"**Category:** {category}")
@@ -327,7 +348,16 @@ with col2:
 # --- Footer ---
 st.divider()
 st.markdown("**🔧 Troubleshooting Tips:**")
+st.markdown("• **Camera Issues?** Try the image upload option above")
 st.markdown("• Ensure good lighting for better detection")
 st.markdown("• Point camera directly at objects")  
 st.markdown("• Allow camera permissions when prompted")
 st.markdown("• Refresh page if camera doesn't connect")
+
+# --- Debug info for development ---
+if st.checkbox("Show Debug Info"):
+    st.write("Session State:", st.session_state)
+    if st.session_state.detection_results:
+        st.write("Detection Results Available:", True)
+    else:
+        st.write("Detection Results Available:", False)
