@@ -1,15 +1,3 @@
-import streamlit as st
-import time
-
-# Page configuration
-st.set_page_config(
-    page_title="AI Dimension Estimator | Professional Platform",
-    page_icon="🚀",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
-
-# Enhanced CSS with better animations and buttons
 def load_css():
     st.markdown("""
     <style>
@@ -78,8 +66,11 @@ def load_css():
         font-family: 'Orbitron', monospace;
         background: var(--gradient-neon);
         background-size: 400% 400%;
+        /* FIXED: Added both webkit and standard background-clip */
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
+        background-clip: text;
+        color: transparent;
         text-align: center;
         margin-bottom: 2rem;
         animation: logoAnimation 3s ease-out, gradientFlow 4s ease-in-out infinite;
@@ -170,8 +161,11 @@ def load_css():
         font-family: 'Orbitron', monospace;
         background: var(--gradient-neon);
         background-size: 400% 400%;
+        /* FIXED: Added both webkit and standard background-clip */
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
+        background-clip: text;
+        color: transparent;
         margin-bottom: 1rem;
         animation: titleGlow 4s ease-in-out infinite, gradientFlow 6s ease-in-out infinite;
         position: relative;
@@ -201,6 +195,7 @@ def load_css():
     .status-card {
         background: var(--glass-bg);
         backdrop-filter: blur(15px);
+        -webkit-backdrop-filter: blur(15px); /* Safari compatibility */
         border: 1px solid var(--border-primary);
         border-radius: 20px;
         padding: 2rem;
@@ -292,6 +287,7 @@ def load_css():
         position: relative;
         overflow: hidden;
         backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px); /* Safari compatibility */
     }
     
     .modern-nav-btn::before {
@@ -431,6 +427,7 @@ def load_css():
         margin: 1rem;
         transition: all 0.4s ease;
         backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px); /* Safari compatibility */
         position: relative;
         overflow: hidden;
     }
@@ -550,8 +547,11 @@ def load_css():
         font-weight: 900;
         font-family: 'Orbitron', monospace;
         background: var(--gradient-neon);
+        /* FIXED: Added both webkit and standard background-clip */
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
+        background-clip: text;
+        color: transparent;
         margin-bottom: 0.5rem;
         animation: valueFlicker 2s infinite;
     }
@@ -627,6 +627,8 @@ def load_css():
         border-radius: 20px;
         padding: 2rem;
         transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px); /* Safari compatibility */
     }
     
     .mission-card:hover {
@@ -684,6 +686,28 @@ def load_css():
         }
     }
     
+    /* Browser Compatibility Fixes */
+    @supports not (backdrop-filter: blur()) {
+        .status-card,
+        .modern-nav-btn,
+        .content-card,
+        .mission-card {
+            background: var(--card-bg);
+        }
+    }
+    
+    /* Firefox compatibility */
+    @-moz-document url-prefix() {
+        .intro-logo,
+        .hero-title,
+        .metric-value {
+            background: var(--gradient-neon);
+            background-clip: text;
+            -moz-background-clip: text;
+            color: transparent;
+        }
+    }
+    
     /* Hide Streamlit Elements */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
@@ -712,798 +736,3 @@ def load_css():
     }
     </style>
     """, unsafe_allow_html=True)
-
-load_css()
-
-# Import modules
-import numpy as np
-from PIL import Image
-import torch
-import io
-import json
-
-try:
-    from ultralytics import YOLO
-    yolo_available = True
-except ImportError:
-    yolo_available = False
-
-try:
-    import cv2
-    opencv_available = True
-except ImportError:
-    opencv_available = False
-
-try:
-    from streamlit_webrtc import webrtc_streamer, WebRtcMode, RTCConfiguration
-    webrtc_available = True
-except ImportError:
-    webrtc_available = False
-
-try:
-    import plotly.graph_objects as go
-    plotly_available = True
-except ImportError:
-    plotly_available = False
-
-# Model loading
-@st.cache_resource
-def load_model():
-    if not yolo_available:
-        return None
-    try:
-        model = YOLO("yolov8n-seg.pt")
-        return model
-    except:
-        return None
-
-# Session state initialization
-if "intro_done" not in st.session_state:
-    st.session_state.intro_done = False
-    st.session_state.mode = "home"
-    st.session_state.detection_results = None
-    st.session_state.selected_image = None
-    st.session_state.dimensions = None
-    st.session_state.captured_frame = None
-    st.session_state.selected_object_idx = None
-    st.session_state.object_mask = None
-
-# Enhanced intro animation
-if not st.session_state.intro_done:
-    intro_container = st.empty()
-    
-    with intro_container.container():
-        st.markdown("""
-        <div class="intro-container" id="intro-container">
-            <div class="intro-logo">
-                AI DIMENSION<br>ESTIMATOR
-            </div>
-            <div class="intro-subtitle">
-                Professional Analysis Platform
-            </div>
-            <div class="intro-loader">
-                <div class="intro-progress" id="intro-progress"></div>
-            </div>
-        </div>
-        
-        <script>
-        // Enhanced intro sequence
-        setTimeout(() => {
-            document.getElementById('intro-progress').style.width = '100%';
-        }, 1500);
-        
-        setTimeout(() => {
-            document.getElementById('intro-container').classList.add('hidden');
-        }, 4500);
-        </script>
-        """, unsafe_allow_html=True)
-    
-    # Wait for intro
-    time.sleep(5)
-    intro_container.empty()
-    st.session_state.intro_done = True
-    st.rerun()
-
-# Helper functions
-def calculate_dimensions(bbox, pixels_per_cm):
-    x1, y1, x2, y2 = bbox
-    width_px = abs(x2 - x1)
-    height_px = abs(y2 - y1)
-    width_cm = width_px / pixels_per_cm
-    height_cm = height_px / pixels_per_cm
-    depth_cm = (width_cm + height_cm) / 2
-    volume_cm3 = width_cm * height_cm * depth_cm
-    return {
-        "width_cm": round(width_cm, 2),
-        "height_cm": round(height_cm, 2),
-        "depth_cm": round(depth_cm, 2),
-        "volume_cm3": round(volume_cm3, 2)
-    }
-
-def create_real_object_hologram(mask_data, dimensions):
-    """Create 3D hologram from actual object mask shape"""
-    if not plotly_available:
-        return None
-    
-    try:
-        # Get actual object contour from mask
-        if mask_data is not None:
-            # Convert mask to contour points
-            contours, _ = cv2.findContours(mask_data.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            
-            if contours:
-                # Get largest contour
-                largest_contour = max(contours, key=cv2.contourArea)
-                
-                # Simplify contour
-                epsilon = 0.01 * cv2.arcLength(largest_contour, True)
-                simplified = cv2.approxPolyDP(largest_contour, epsilon, True)
-                
-                # Extract coordinates
-                contour_points = simplified.reshape(-1, 2)
-                x_coords = contour_points[:, 0]
-                y_coords = contour_points[:, 1]
-                
-                # Normalize to dimensions
-                x_min, x_max = x_coords.min(), x_coords.max()
-                y_min, y_max = y_coords.min(), y_coords.max()
-                
-                x_norm = (x_coords - x_min) / (x_max - x_min) * dimensions['width_cm']
-                y_norm = (y_coords - y_min) / (y_max - y_min) * dimensions['height_cm']
-                
-                # Create 3D object
-                fig = go.Figure()
-                
-                depth_cm = dimensions['depth_cm']
-                
-                # Bottom face (z=0)
-                fig.add_trace(go.Scatter3d(
-                    x=x_norm.tolist() + [x_norm[0]],  # Close the shape
-                    y=y_norm.tolist() + [y_norm[0]],
-                    z=[0] * (len(x_norm) + 1),
-                    mode='lines+markers',
-                    line=dict(color='cyan', width=8),
-                    marker=dict(size=6, color='cyan'),
-                    name='Base',
-                    showlegend=True
-                ))
-                
-                # Top face (z=depth)
-                fig.add_trace(go.Scatter3d(
-                    x=x_norm.tolist() + [x_norm[0]],
-                    y=y_norm.tolist() + [y_norm[0]],
-                    z=[depth_cm] * (len(x_norm) + 1),
-                    mode='lines+markers',
-                    line=dict(color='yellow', width=8),
-                    marker=dict(size=6, color='yellow'),
-                    name='Top',
-                    showlegend=True
-                ))
-                
-                # Vertical edges connecting base to top
-                for i in range(len(x_norm)):
-                    fig.add_trace(go.Scatter3d(
-                        x=[x_norm[i], x_norm[i]],
-                        y=[y_norm[i], y_norm[i]],
-                        z=[0, depth_cm],
-                        mode='lines',
-                        line=dict(color='magenta', width=6),
-                        showlegend=False
-                    ))
-                
-                # Add cross-sections for interior structure
-                num_levels = 5
-                for i, z_level in enumerate(np.linspace(0, depth_cm, num_levels)):
-                    if 0 < z_level < depth_cm:
-                        # Create slightly smaller cross-section for depth effect
-                        scale_factor = 0.8 + 0.2 * (z_level / depth_cm)
-                        center_x, center_y = x_norm.mean(), y_norm.mean()
-                        
-                        x_scaled = center_x + (x_norm - center_x) * scale_factor
-                        y_scaled = center_y + (y_norm - center_y) * scale_factor
-                        
-                        alpha = 0.3 + 0.4 * (i / num_levels)
-                        fig.add_trace(go.Scatter3d(
-                            x=x_scaled.tolist() + [x_scaled[0]],
-                            y=y_scaled.tolist() + [y_scaled[0]],
-                            z=[z_level] * (len(x_scaled) + 1),
-                            mode='lines',
-                            line=dict(color=f'rgba(0,255,255,{alpha})', width=4),
-                            showlegend=False
-                        ))
-                
-                # Enhanced layout
-                fig.update_layout(
-                    title={
-                        'text': f"🌟 3D OBJECT RECONSTRUCTION",
-                        'x': 0.5,
-                        'font': {'size': 24, 'color': 'white', 'family': 'Orbitron'}
-                    },
-                    scene=dict(
-                        bgcolor='rgba(10,10,10,0.95)',
-                        xaxis=dict(
-                            title='Width (cm)',
-                            gridcolor='rgba(0,212,255,0.3)',
-                            gridwidth=2,
-                            backgroundcolor='rgba(0,0,0,0)',
-                            color='white'
-                        ),
-                        yaxis=dict(
-                            title='Height (cm)',
-                            gridcolor='rgba(139,92,246,0.3)',
-                            gridwidth=2,
-                            backgroundcolor='rgba(0,0,0,0)',
-                            color='white'
-                        ),
-                        zaxis=dict(
-                            title='Depth (cm)',
-                            gridcolor='rgba(16,185,129,0.3)',
-                            gridwidth=2,
-                            backgroundcolor='rgba(0,0,0,0)',
-                            color='white'
-                        ),
-                        camera=dict(
-                            eye=dict(x=1.8, y=1.8, z=1.8),
-                            up=dict(x=0, y=0, z=1)
-                        ),
-                        aspectratio=dict(x=1, y=1, z=0.8)
-                    ),
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    font=dict(color='white', family='Inter'),
-                    margin=dict(l=0, r=0, t=60, b=0),
-                    showlegend=True,
-                    legend=dict(
-                        bgcolor='rgba(26,26,26,0.8)',
-                        bordercolor='rgba(0,212,255,0.5)',
-                        borderwidth=1,
-                        font=dict(color='white')
-                    )
-                )
-                
-                return fig
-                
-        # Fallback to simple box if no mask
-        return create_simple_box_hologram(dimensions)
-        
-    except Exception as e:
-        st.error(f"3D Reconstruction Error: {str(e)}")
-        return create_simple_box_hologram(dimensions)
-
-def create_simple_box_hologram(dimensions):
-    """Fallback simple box hologram"""
-    if not plotly_available:
-        return None
-    
-    w, h, d = dimensions['width_cm'], dimensions['height_cm'], dimensions['depth_cm']
-    
-    fig = go.Figure()
-    
-    # Box vertices
-    vertices_x = [0, w, w, 0, 0, w, w, 0]
-    vertices_y = [0, 0, h, h, 0, 0, h, h]
-    vertices_z = [0, 0, 0, 0, d, d, d, d]
-    
-    # Box edges
-    edges = [
-        [0, 1], [1, 2], [2, 3], [3, 0],  # Bottom
-        [4, 5], [5, 6], [6, 7], [7, 4],  # Top
-        [0, 4], [1, 5], [2, 6], [3, 7]   # Vertical
-    ]
-    
-    for edge in edges:
-        start, end = edge
-        fig.add_trace(go.Scatter3d(
-            x=[vertices_x[start], vertices_x[end]],
-            y=[vertices_y[start], vertices_y[end]],
-            z=[vertices_z[start], vertices_z[end]],
-            mode='lines',
-            line=dict(color='cyan', width=8),
-            showlegend=False
-        ))
-    
-    # Corner points
-    fig.add_trace(go.Scatter3d(
-        x=vertices_x, y=vertices_y, z=vertices_z,
-        mode='markers',
-        marker=dict(size=12, color='yellow'),
-        name=f'Box ({w}×{h}×{d} cm)'
-    ))
-    
-    fig.update_layout(
-        title="🌟 3D BOX VISUALIZATION",
-        scene=dict(
-            bgcolor='rgba(10,10,10,0.95)',
-            xaxis=dict(title='Width (cm)', color='white'),
-            yaxis=dict(title='Height (cm)', color='white'),
-            zaxis=dict(title='Depth (cm)', color='white')
-        ),
-        paper_bgcolor='rgba(0,0,0,0)',
-        font=dict(color='white')
-    )
-    
-    return fig
-
-def create_interactive_detection_display(image, results):
-    """Create clickable object detection display"""
-    if results is None or not hasattr(results, 'boxes'):
-        return st.image(image, use_column_width=True)
-    
-    # Display image with interactive overlay
-    annotated_img = results.plot()
-    
-    # Create clickable areas using HTML/CSS
-    boxes = results.boxes.xyxy.cpu().numpy()
-    object_names = [model.names[int(cls.item())] for cls in results.boxes.cls]
-    confidences = results.boxes.conf.cpu().numpy()
-    
-    # Display image
-    st.image(annotated_img, caption="🎯 Click on objects to select them", use_column_width=True)
-    
-    # Create object selection buttons
-    st.markdown("### 🎯 Detected Objects - Click to Select:")
-    
-    cols = st.columns(min(len(boxes), 4))
-    for i, (box, obj_name, conf) in enumerate(zip(boxes, object_names, confidences)):
-        col_idx = i % len(cols)
-        with cols[col_idx]:
-            if st.button(f"{obj_name}\n{conf:.1%}", key=f"obj_{i}", use_container_width=True):
-                st.session_state.selected_object_idx = i
-                st.success(f"🎯 Selected: {obj_name}")
-                return i
-    
-    return None
-
-# Camera callback
-captured_frame = None
-
-def video_frame_callback(frame):
-    global captured_frame
-    img = frame.to_ndarray(format="bgr24")
-    captured_frame = img.copy()
-    return frame
-
-# Load model
-model = load_model()
-
-# === MAIN CONTENT ===
-
-# Hero Section
-st.markdown("""
-<div class="hero-section">
-    <div class="hero-title">AI DIMENSION ESTIMATOR</div>
-    <div class="hero-subtitle">Professional Analysis Platform</div>
-</div>
-""", unsafe_allow_html=True)
-
-# Status Grid
-st.markdown('<div class="status-grid">', unsafe_allow_html=True)
-
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    yolo_status = "ONLINE" if model else "OFFLINE"
-    st.markdown(f"""
-    <div class="status-card">
-        <div class="status-header">
-            <div class="status-icon">🤖</div>
-            <div>
-                <div class="status-title">Neural Network</div>
-                <div class="status-value">{yolo_status}</div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with col2:
-    opencv_status = "READY" if opencv_available else "LIMITED"
-    st.markdown(f"""
-    <div class="status-card">
-        <div class="status-header">
-            <div class="status-icon">📹</div>
-            <div>
-                <div class="status-title">Vision System</div>
-                <div class="status-value">{opencv_status}</div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with col3:
-    camera_status = "ACTIVE" if webrtc_available else "OFFLINE"
-    st.markdown(f"""
-    <div class="status-card">
-        <div class="status-header">
-            <div class="status-icon">📡</div>
-            <div>
-                <div class="status-title">Camera System</div>
-                <div class="status-value">{camera_status}</div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with col4:
-    hologram_status = "3D READY" if plotly_available else "2D ONLY"
-    st.markdown(f"""
-    <div class="status-card">
-        <div class="status-header">
-            <div class="status-icon">🌟</div>
-            <div>
-                <div class="status-title">Hologram Engine</div>
-                <div class="status-value">{hologram_status}</div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-# System Status
-if model:
-    st.markdown('<div class="success-msg">🚀 <strong>ALL SYSTEMS OPERATIONAL</strong> - Ready for Advanced Analysis</div>', unsafe_allow_html=True)
-else:
-    st.markdown('<div class="error-msg">🚨 <strong>CRITICAL ERROR</strong> - Neural Network Offline</div>', unsafe_allow_html=True)
-    st.stop()
-
-# Enhanced Navigation
-st.markdown('<div class="nav-container">', unsafe_allow_html=True)
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.markdown("""
-    <div class="modern-nav-btn">
-        <div class="nav-icon">📹</div>
-        <div class="nav-title">Camera Mode</div>
-        <div class="nav-description">Real-time video capture with live object detection and instant analysis</div>
-    </div>
-    """, unsafe_allow_html=True)
-    if st.button("", key="nav_camera", help="Launch Camera Mode"):
-        if webrtc_available:
-            st.session_state.mode = "camera"
-            st.rerun()
-        else:
-            st.error("❌ Camera system unavailable")
-
-with col2:
-    st.markdown("""
-    <div class="modern-nav-btn">
-        <div class="nav-icon">📁</div>
-        <div class="nav-title">Upload Mode</div>
-        <div class="nav-description">Advanced image processing with AI-powered object recognition and measurement</div>
-    </div>
-    """, unsafe_allow_html=True)
-    if st.button("", key="nav_upload", help="Launch Upload Mode"):
-        st.session_state.mode = "upload"
-        st.rerun()
-
-with col3:
-    st.markdown("""
-    <div class="modern-nav-btn">
-        <div class="nav-icon">🏠</div>
-        <div class="nav-title">Mission Control</div>
-        <div class="nav-description">System overview, status monitoring and platform capabilities overview</div>
-    </div>
-    """, unsafe_allow_html=True)
-    if st.button("", key="nav_home", help="Return to Mission Control"):
-        st.session_state.mode = "home"
-        st.rerun()
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-# Main Content Based on Mode
-if st.session_state.mode == "home":
-    # Enhanced Mission Control
-    st.markdown("""
-    <div class="content-card">
-        <h2 style="color: #00d4ff; font-family: 'Orbitron'; margin-bottom: 2rem; text-align: center;">🎯 MISSION CONTROL CENTER</h2>
-        
-        <div class="mission-grid">
-            <div class="mission-card">
-                <h3 style="color: #8b5cf6; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;">
-                    <span style="font-size: 2rem;">🚀</span>
-                    CORE CAPABILITIES
-                </h3>
-                <ul style="color: #a1a1aa; line-height: 2; font-size: 1.1rem;">
-                    <li><strong>YOLOv8 Neural Network:</strong> State-of-the-art object detection</li>
-                    <li><strong>Real-time Processing:</strong> Live video analysis</li>
-                    <li><strong>Precision Measurement:</strong> Advanced calibration systems</li>
-                    <li><strong>3D Reconstruction:</strong> True object shape holography</li>
-                    <li><strong>Multi-object Support:</strong> Simultaneous analysis</li>
-                    <li><strong>Interactive Selection:</strong> Click-to-select objects</li>
-                </ul>
-            </div>
-            
-            <div class="mission-card">
-                <h3 style="color: #10b981; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 1rem;">
-                    <span style="font-size: 2rem;">📡</span>
-                    OPERATION MODES
-                </h3>
-                <div style="color: #a1a1aa; line-height: 1.8;">
-                    <div style="margin-bottom: 1rem; padding: 1rem; background: rgba(0,212,255,0.1); border-radius: 8px;">
-                        <strong style="color: #00d4ff;">📹 Camera Mode:</strong><br>
-                        Live video capture with real-time detection and measurement
-                    </div>
-                    <div style="margin-bottom: 1rem; padding: 1rem; background: rgba(139,92,246,0.1); border-radius: 8px;">
-                        <strong style="color: #8b5cf6;">📁 Upload Mode:</strong><br>
-                        Static image processing with interactive object selection
-                    </div>
-                    <div style="padding: 1rem; background: rgba(16,185,129,0.1); border-radius: 8px;">
-                        <strong style="color: #10b981;">🌟 3D Hologram:</strong><br>
-                        Advanced visualization of actual object shapes
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div style="text-align: center; margin-top: 3rem; padding: 2.5rem; background: linear-gradient(135deg, rgba(0,212,255,0.1), rgba(139,92,246,0.1)); border-radius: 20px; border: 2px solid rgba(0,212,255,0.3);">
-            <h3 style="color: #00d4ff; margin-bottom: 1rem; font-size: 1.8rem;">🎮 SELECT OPERATION MODE TO BEGIN</h3>
-            <p style="color: #71717a; font-size: 1.2rem; margin-bottom: 2rem;">Choose your preferred analysis method and start measuring objects with AI precision</p>
-            <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
-                <span style="background: rgba(0,212,255,0.2); padding: 0.5rem 1rem; border-radius: 20px; color: #00d4ff;">Real-time Analysis</span>
-                <span style="background: rgba(139,92,246,0.2); padding: 0.5rem 1rem; border-radius: 20px; color: #8b5cf6;">Interactive Selection</span>
-                <span style="background: rgba(16,185,129,0.2); padding: 0.5rem 1rem; border-radius: 20px; color: #10b981;">3D Visualization</span>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-elif st.session_state.mode == "camera" and webrtc_available:
-    col1, col2 = st.columns([3, 2])
-    
-    with col1:
-        st.markdown("""<div class="content-card"><h3 style="color: #00d4ff; font-family: 'Orbitron';">📹 LIVE SURVEILLANCE SYSTEM</h3>""", unsafe_allow_html=True)
-        
-        ctx = webrtc_streamer(
-            key="professional_camera",
-            mode=WebRtcMode.SENDRECV,
-            rtc_configuration=RTCConfiguration({
-                "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
-            }),
-            video_frame_callback=video_frame_callback,
-            media_stream_constraints={
-                "video": {"width": 1280, "height": 720, "frameRate": 30},
-                "audio": False
-            },
-            async_processing=False,
-        )
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""<div class="content-card"><h3 style="color: #8b5cf6;">🎛️ CONTROL PANEL</h3>""", unsafe_allow_html=True)
-        
-        if captured_frame is not None:
-            st.success("🟢 **CAMERA FEED ACTIVE**")
-            st.info("📊 **Resolution:** HD 1280x720")
-            st.info("🎯 **AI Detection:** Ready")
-            
-            if st.button("📸 **CAPTURE TARGET**", key="capture_btn", type="primary"):
-                st.session_state.captured_frame = captured_frame.copy()
-                st.session_state.selected_image = Image.fromarray(cv2.cvtColor(captured_frame, cv2.COLOR_BGR2RGB))
-                st.session_state.mode = "detected"
-                st.success("🎯 **TARGET ACQUIRED**")
-                st.rerun()
-        else:
-            st.warning("🟡 **INITIALIZING CAMERA**")
-            st.info("⏳ Establishing video connection...")
-            st.info("🔧 Check camera permissions")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-
-elif st.session_state.mode == "upload":
-    col1, col2 = st.columns([3, 2])
-    
-    with col1:
-        st.markdown("""<div class="content-card"><h3 style="color: #00d4ff; font-family: 'Orbitron';">📁 ADVANCED UPLOAD SYSTEM</h3>""", unsafe_allow_html=True)
-        
-        uploaded_file = st.file_uploader(
-            "Deploy Target Image for Analysis",
-            type=['jpg', 'jpeg', 'png', 'bmp', 'tiff'],
-            help="Upload high-resolution images for optimal analysis results"
-        )
-        
-        if uploaded_file:
-            image = Image.open(uploaded_file)
-            st.image(image, caption="🎯 Target Image Successfully Loaded", use_column_width=True)
-            st.session_state.selected_image = image
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("""<div class="content-card"><h3 style="color: #10b981;">📊 UPLOAD STATUS</h3>""", unsafe_allow_html=True)
-        
-        if uploaded_file:
-            st.success("✅ **IMAGE SUCCESSFULLY LOADED**")
-            st.info(f"📏 **Resolution:** {st.session_state.selected_image.size}")
-            st.info(f"📄 **Format:** {st.session_state.selected_image.format}")
-            st.info("🎯 **Status:** Ready for AI Analysis")
-            
-            if st.button("🔍 **INITIATE NEURAL ANALYSIS**", key="analyze_btn", type="primary"):
-                st.session_state.mode = "detected"
-                st.rerun()
-        else:
-            st.info("📁 **AWAITING IMAGE DEPLOYMENT**")
-            st.markdown("""
-            **📋 Supported Formats:**
-            - JPG, JPEG, PNG
-            - BMP, TIFF
-            - Maximum size: 200MB
-            
-            **💡 Optimization Tips:**
-            - Use high resolution images
-            - Ensure good lighting conditions  
-            - Clear object visibility required
-            - Avoid blurry or low-quality images
-            """)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-
-elif st.session_state.mode == "detected":
-    if st.session_state.selected_image:
-        with st.spinner("🔬 **AI NEURAL NETWORK PROCESSING IN PROGRESS...**"):
-            img_array = np.array(st.session_state.selected_image)
-            results = model.predict(source=img_array, conf=0.4, verbose=False)
-            
-            if results and len(results) > 0:
-                result = results[0]
-                if hasattr(result, 'boxes') and len(result.boxes) > 0:
-                    st.session_state.detection_results = result
-                    
-                    col1, col2 = st.columns([3, 2])
-                    
-                    with col1:
-                        st.markdown("""<div class="content-card"><h3 style="color: #00d4ff;">🎯 AI DETECTION ANALYSIS</h3>""", unsafe_allow_html=True)
-                        
-                        # Interactive object selection
-                        selected_idx = create_interactive_detection_display(st.session_state.selected_image, result)
-                        
-                        if selected_idx is not None:
-                            st.session_state.selected_object_idx = selected_idx
-                        
-                        st.markdown('</div>', unsafe_allow_html=True)
-                    
-                    with col2:
-                        st.markdown("""<div class="content-card"><h3 style="color: #8b5cf6;">🎮 OBJECT ANALYSIS</h3>""", unsafe_allow_html=True)
-                        
-                        st.success(f"🎯 **{len(result.boxes)} OBJECTS DETECTED**")
-                        
-                        if st.session_state.selected_object_idx is not None:
-                            idx = st.session_state.selected_object_idx
-                            object_names = [model.names[int(cls.item())] for cls in result.boxes.cls]
-                            selected_obj = object_names[idx]
-                            confidence = result.boxes.conf[idx]
-                            
-                            # Store object mask for hologram
-                            if hasattr(result, 'masks') and result.masks is not None:
-                                st.session_state.object_mask = result.masks.data[idx].cpu().numpy()
-                            
-                            # Object classification
-                            biological = ['person', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'bird']
-                            category = "🧬 BIOLOGICAL" if selected_obj.lower() in biological else "⚙️ MECHANICAL"
-                            
-                            st.markdown(f"**🎯 Selected:** {selected_obj}")
-                            st.markdown(f"**🏷️ Classification:** {category}")
-                            st.markdown(f"**🎯 AI Confidence:** {confidence:.1%}")
-                            
-                            st.markdown("---")
-                            st.markdown("### 📏 PRECISION CALIBRATION")
-                            
-                            ref_width_cm = st.number_input("Reference Width (cm)", min_value=0.1, value=10.0, step=0.1, key="ref_width")
-                            ref_width_px = st.number_input("Reference Pixels", min_value=1, value=100, step=1, key="ref_pixels")
-                            
-                            if st.button("📐 **EXECUTE MEASUREMENT**", key="measure_btn", type="primary"):
-                                try:
-                                    pixels_per_cm = ref_width_px / ref_width_cm
-                                    bbox = result.boxes.xyxy[idx].cpu().numpy()
-                                    dims = calculate_dimensions(bbox, pixels_per_cm)
-                                    st.session_state.dimensions = dims
-                                    st.session_state.mode = "measured"
-                                    st.success("✅ **MEASUREMENT ANALYSIS COMPLETE**")
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"❌ Measurement Error: {str(e)}")
-                        else:
-                            st.info("👆 **Click on an object above to select it for measurement**")
-                        
-                        st.markdown('</div>', unsafe_allow_html=True)
-                else:
-                    st.markdown('<div class="error-msg">❌ <strong>NO OBJECTS DETECTED</strong> - Try different image or lighting</div>', unsafe_allow_html=True)
-            else:
-                st.markdown('<div class="error-msg">❌ <strong>ANALYSIS FAILED</strong> - Unable to process image</div>', unsafe_allow_html=True)
-
-elif st.session_state.mode == "measured":
-    if st.session_state.dimensions:
-        dims = st.session_state.dimensions
-        
-        st.markdown("""<div class="success-msg">🎯 <strong>DIMENSIONAL ANALYSIS COMPLETED SUCCESSFULLY</strong><br>Advanced measurement protocol executed with high precision</div>""", unsafe_allow_html=True)
-        
-        # Enhanced Metrics Display
-        st.markdown('<div class="metrics-grid">', unsafe_allow_html=True)
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.markdown(f"""<div class="metric-card"><div class="metric-value">{dims['width_cm']}</div><div class="metric-label">WIDTH (CM)</div></div>""", unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown(f"""<div class="metric-card"><div class="metric-value">{dims['height_cm']}</div><div class="metric-label">HEIGHT (CM)</div></div>""", unsafe_allow_html=True)
-        
-        with col3:
-            st.markdown(f"""<div class="metric-card"><div class="metric-value">{dims['depth_cm']}</div><div class="metric-label">DEPTH (CM)</div></div>""", unsafe_allow_html=True)
-        
-        with col4:
-            st.markdown(f"""<div class="metric-card"><div class="metric-value">{dims['volume_cm3']}</div><div class="metric-label">VOLUME (CM³)</div></div>""", unsafe_allow_html=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Action buttons
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            if st.button("🌟 **3D HOLOGRAPHIC RECONSTRUCTION**", key="hologram_btn", type="primary"):
-                with st.spinner("🎭 **GENERATING ADVANCED 3D HOLOGRAM...**"):
-                    try:
-                        # Create real object shape hologram
-                        fig = create_real_object_hologram(st.session_state.object_mask, dims)
-                        
-                        if fig:
-                            st.markdown("### 🌟 3D Holographic Object Reconstruction")
-                            st.plotly_chart(fig, use_container_width=True)
-                            st.success("✨ **3D HOLOGRAM GENERATED SUCCESSFULLY** - Showing actual object shape")
-                        else:
-                            st.error("❌ Hologram generation failed")
-                    except Exception as e:
-                        st.error(f"❌ Hologram Error: {str(e)}")
-        
-        with col2:
-            if st.button("📊 **DETAILED ANALYSIS REPORT**", key="report_btn", type="secondary"):
-                current_time = time.strftime("%Y-%m-%d %H:%M:%S")
-                st.markdown(f"""
-                <div class="content-card">
-                    <h3 style="color: #00d4ff; font-family: 'Orbitron';">📋 COMPREHENSIVE ANALYSIS REPORT</h3>
-                    <div style="background: rgba(0,0,0,0.4); padding: 2rem; border-radius: 16px; font-family: 'JetBrains Mono', monospace;">
-                        <p><strong>📅 TIMESTAMP:</strong> {current_time}</p>
-                        <p><strong>🎯 OBJECT:</strong> {model.names[int(st.session_state.detection_results.boxes.cls[st.session_state.selected_object_idx].item())] if st.session_state.detection_results else 'Unknown'}</p>
-                        <hr style="border-color: #333; margin: 1rem 0;">
-                        <p><strong>📏 DIMENSIONAL ANALYSIS:</strong></p>
-                        <ul style="margin-left: 2rem;">
-                            <li>Width: {dims['width_cm']} cm</li>
-                            <li>Height: {dims['height_cm']} cm</li>
-                            <li>Depth: {dims['depth_cm']} cm (estimated)</li>
-                            <li>Volume: {dims['volume_cm3']} cm³</li>
-                        </ul>
-                        <hr style="border-color: #333; margin: 1rem 0;">
-                        <p><strong>📊 ANALYSIS STATUS:</strong> <span style="color: #10b981;">✅ COMPLETE</span></p>
-                        <p><strong>🎯 CONFIDENCE LEVEL:</strong> <span style="color: #00d4ff;">HIGH PRECISION</span></p>
-                        <p><strong>🔬 METHOD:</strong> <span style="color: #8b5cf6;">AI-Enhanced Calibration</span></p>
-                        <p><strong>🌟 3D RECONSTRUCTION:</strong> <span style="color: #f59e0b;">{'AVAILABLE' if st.session_state.object_mask is not None else 'BASIC'}</span></p>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-        
-        with col3:
-            if st.button("🔄 **INITIATE NEW ANALYSIS**", key="new_btn", type="secondary"):
-                # Reset all session states
-                for key in ['mode', 'detection_results', 'selected_image', 'dimensions', 'captured_frame', 'selected_object_idx', 'object_mask']:
-                    if key in st.session_state:
-                        if key == 'mode':
-                            st.session_state[key] = "home"
-                        else:
-                            st.session_state[key] = None
-                st.rerun()
-
-# Enhanced Footer
-st.markdown("""
-<div style="text-align: center; padding: 4rem 2rem 2rem; margin-top: 4rem; border-top: 2px solid #333; background: linear-gradient(135deg, rgba(10,10,10,0.8), rgba(26,26,46,0.4));">
-    <h3 style="color: #00d4ff; font-family: 'Orbitron'; margin-bottom: 1rem; font-size: 2rem;">AI DIMENSION ESTIMATOR v3.0</h3>
-    <p style="color: #8b5cf6; font-size: 1.3rem; font-weight: 600; margin-bottom: 1rem;">Next-Generation Professional Analysis Platform</p>
-    <p style="color: #71717a; font-size: 1.1rem; margin-bottom: 2rem;">Powered by Advanced Neural Networks & 3D Reconstruction Technology</p>
-    <div style="display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; margin-top: 2rem;">
-        <span style="background: rgba(0,212,255,0.1); padding: 0.8rem 1.5rem; border-radius: 25px; color: #00d4ff; border: 1px solid rgba(0,212,255,0.3);">🎯 Deploy</span>
-        <span style="background: rgba(139,92,246,0.1); padding: 0.8rem 1.5rem; border-radius: 25px; color: #8b5cf6; border: 1px solid rgba(139,92,246,0.3);">🔍 Detect</span>
-        <span style="background: rgba(16,185,129,0.1); padding: 0.8rem 1.5rem; border-radius: 25px; color: #10b981; border: 1px solid rgba(16,185,129,0.3);">📐 Measure</span>
-        <span style="background: rgba(245,158,11,0.1); padding: 0.8rem 1.5rem; border-radius: 25px; color: #f59e0b; border: 1px solid rgba(245,158,11,0.3);">🌟 Visualize</span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
