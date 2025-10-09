@@ -9,49 +9,411 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Load CSS with intro animation
-def load_css_with_intro():
-    try:
-        with open("style.css", "r") as f:
-            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-    except FileNotFoundError:
-        st.markdown("""<style>
-        /* Fallback minimal styles */
-        .stApp { background: #0a0a0a; color: white; font-family: 'Inter', sans-serif; }
-        .intro-sequence { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0a0a0a; z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; animation: fadeOut 4s ease-in-out 3s forwards; }
-        @keyframes fadeOut { 0% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
-        .intro-logo { font-size: 4rem; font-weight: 900; background: linear-gradient(45deg, #00d4ff, #8b5cf6, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; animation: pulse 2s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-        </style>""", unsafe_allow_html=True)
-
-load_css_with_intro()
-
-# Animated Intro Sequence
-def show_intro():
-    intro_html = """
-    <div class="intro-sequence" id="introSeq">
-        <div class="intro-logo">
-            AI DIMENSION<br>ESTIMATOR
-        </div>
-        <div class="intro-subtitle">
-            Next-Generation Analysis Platform
-        </div>
-        <div class="intro-loader"></div>
-    </div>
+# Simplified CSS - Fixed Content Display
+def load_css():
+    st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Orbitron:wght@400;700;900&display=swap');
     
-    <script>
-    setTimeout(function() {
-        document.getElementById('introSeq').style.display = 'none';
-    }, 7000);
-    </script>
-    """
-    st.markdown(intro_html, unsafe_allow_html=True)
+    :root {
+        --primary-bg: #0a0a0a;
+        --card-bg: #1a1a1a;
+        --glass-bg: rgba(22, 22, 22, 0.85);
+        --border-primary: #333333;
+        --neon-blue: #00d4ff;
+        --neon-purple: #8b5cf6;
+        --neon-green: #10b981;
+        --text-primary: #ffffff;
+        --text-secondary: #a1a1aa;
+        --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        --gradient-neon: linear-gradient(45deg, #00d4ff, #8b5cf6, #10b981);
+    }
+    
+    .stApp {
+        background: var(--primary-bg);
+        background-image: 
+            radial-gradient(circle at 20% 80%, rgba(0, 212, 255, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.08) 0%, transparent 50%);
+        color: var(--text-primary);
+        font-family: 'Inter', sans-serif;
+    }
+    
+    /* Intro Animation - Simplified */
+    .intro-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: var(--primary-bg);
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        opacity: 1;
+        transition: opacity 1s ease-out;
+    }
+    
+    .intro-overlay.fade-out {
+        opacity: 0;
+        pointer-events: none;
+    }
+    
+    .intro-logo {
+        font-size: 4rem;
+        font-weight: 900;
+        font-family: 'Orbitron', monospace;
+        background: var(--gradient-neon);
+        background-size: 400% 400%;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: logoGlow 2s ease-in-out infinite alternate;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    
+    @keyframes logoGlow {
+        0% { filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.5)); }
+        100% { filter: drop-shadow(0 0 40px rgba(139, 92, 246, 0.8)); }
+    }
+    
+    .intro-subtitle {
+        font-size: 1.2rem;
+        color: var(--neon-blue);
+        font-weight: 300;
+        text-align: center;
+        margin-bottom: 3rem;
+    }
+    
+    .loading-bar {
+        width: 200px;
+        height: 4px;
+        background: var(--border-primary);
+        border-radius: 2px;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .loading-progress {
+        height: 100%;
+        background: var(--gradient-neon);
+        width: 0%;
+        transition: width 2s ease-out;
+        border-radius: 2px;
+    }
+    
+    /* Hero Section */
+    .hero-section {
+        text-align: center;
+        padding: 4rem 0 2rem;
+        background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+        border-radius: 0 0 20px 20px;
+        margin-bottom: 2rem;
+    }
+    
+    .hero-title {
+        font-size: clamp(2.5rem, 6vw, 4rem);
+        font-weight: 900;
+        font-family: 'Orbitron', monospace;
+        background: var(--gradient-neon);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 1rem;
+        animation: titlePulse 3s ease-in-out infinite;
+    }
+    
+    @keyframes titlePulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.8; }
+    }
+    
+    .hero-subtitle {
+        font-size: 1.2rem;
+        color: var(--text-secondary);
+        font-weight: 300;
+    }
+    
+    /* Status Cards */
+    .status-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .status-card {
+        background: var(--glass-bg);
+        backdrop-filter: blur(10px);
+        border: 1px solid var(--border-primary);
+        border-radius: 16px;
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .status-card:hover {
+        transform: translateY(-5px);
+        border-color: var(--neon-blue);
+        box-shadow: 0 10px 30px rgba(0, 212, 255, 0.3);
+    }
+    
+    .status-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .status-icon {
+        width: 40px;
+        height: 40px;
+        background: var(--gradient-primary);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+    
+    .status-title {
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .status-value {
+        font-weight: 700;
+        color: var(--neon-blue);
+        font-family: 'Orbitron', monospace;
+    }
+    
+    /* Navigation Buttons */
+    .nav-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 2rem;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .nav-btn {
+        background: var(--card-bg);
+        border: 1px solid var(--border-primary);
+        border-radius: 16px;
+        padding: 2rem;
+        color: var(--text-primary);
+        text-decoration: none;
+        transition: all 0.4s ease;
+        cursor: pointer;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .nav-btn:hover {
+        transform: translateY(-8px);
+        border-color: var(--neon-blue);
+        box-shadow: 0 15px 35px rgba(0, 212, 255, 0.4);
+    }
+    
+    .nav-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(0, 212, 255, 0.1), transparent);
+        transition: left 0.6s ease;
+    }
+    
+    .nav-btn:hover::before {
+        left: 100%;
+    }
+    
+    .nav-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        display: block;
+    }
+    
+    .nav-title {
+        font-size: 1.2rem;
+        font-weight: 700;
+        font-family: 'Orbitron', monospace;
+        margin-bottom: 0.5rem;
+    }
+    
+    .nav-description {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        line-height: 1.4;
+    }
+    
+    /* Content Cards */
+    .content-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-primary);
+        border-radius: 20px;
+        padding: 2rem;
+        margin: 1rem;
+        transition: all 0.3s ease;
+        backdrop-filter: blur(10px);
+    }
+    
+    .content-card:hover {
+        transform: translateY(-3px);
+        border-color: var(--neon-blue);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+    }
+    
+    /* Action Buttons */
+    .action-btn {
+        background: var(--gradient-primary);
+        border: none;
+        border-radius: 12px;
+        padding: 1rem 2rem;
+        color: white;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        width: 100%;
+    }
+    
+    .action-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    .action-btn.capture {
+        background: linear-gradient(135deg, #f59e0b, #f97316);
+    }
+    
+    .action-btn.detect {
+        background: linear-gradient(135deg, #10b981, #059669);
+    }
+    
+    .action-btn.measure {
+        background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+    }
+    
+    .action-btn.hologram {
+        background: linear-gradient(135deg, #06b6d4, #0891b2);
+    }
+    
+    /* Metrics */
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1.5rem;
+        margin: 2rem 0;
+    }
+    
+    .metric-card {
+        background: var(--glass-bg);
+        border: 1px solid var(--border-primary);
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-align: center;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .metric-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 2px;
+        background: var(--gradient-neon);
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-5px);
+        border-color: var(--neon-blue);
+    }
+    
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--neon-blue);
+        font-family: 'Orbitron', monospace;
+        margin-bottom: 0.5rem;
+    }
+    
+    .metric-label {
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    /* Success/Error Messages */
+    .success-msg {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1));
+        border: 1px solid var(--neon-green);
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        margin: 1rem 0;
+        color: var(--neon-green);
+    }
+    
+    .error-msg {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.1));
+        border: 1px solid #ef4444;
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        margin: 1rem 0;
+        color: #ef4444;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .hero-title { font-size: 2.5rem; }
+        .intro-logo { font-size: 2.5rem; }
+        .status-grid, .nav-container { padding: 1rem; }
+        .content-card { padding: 1.5rem; margin: 0.5rem; }
+        .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    
+    @media (max-width: 480px) {
+        .metrics-grid { grid-template-columns: 1fr; }
+        .nav-container { grid-template-columns: 1fr; }
+    }
+    
+    /* Hide Streamlit branding */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .stDeployButton {display:none;}
+    
+    /* Streamlit element fixes */
+    .stSelectbox > div > div > div {
+        background-color: var(--card-bg) !important;
+        border: 1px solid var(--border-primary) !important;
+        color: var(--text-primary) !important;
+    }
+    
+    .stNumberInput > div > div > div {
+        background-color: var(--card-bg) !important;
+        border: 1px solid var(--border-primary) !important;
+        color: var(--text-primary) !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+load_css()
 
 # Import modules
 import numpy as np
 from PIL import Image
 import torch
-import io
 
 try:
     from ultralytics import YOLO
@@ -73,8 +435,6 @@ except ImportError:
 
 try:
     import plotly.graph_objects as go
-    import plotly.express as px
-    from plotly.subplots import make_subplots
     plotly_available = True
 except ImportError:
     plotly_available = False
@@ -90,21 +450,56 @@ def load_model():
     except:
         return None
 
-# Session state
-if "app_loaded" not in st.session_state:
-    st.session_state.app_loaded = False
+# Session state initialization
+if "intro_shown" not in st.session_state:
+    st.session_state.intro_shown = False
     st.session_state.mode = "home"
     st.session_state.detection_results = None
     st.session_state.selected_image = None
     st.session_state.dimensions = None
     st.session_state.captured_frame = None
-    st.session_state.selected_object_mask = None
 
-# Show intro only on first load
-if not st.session_state.app_loaded:
-    show_intro()
-    st.session_state.app_loaded = True
-    time.sleep(0.1)  # Small delay for intro
+# Show intro animation
+if not st.session_state.intro_shown:
+    intro_placeholder = st.empty()
+    with intro_placeholder.container():
+        st.markdown("""
+        <div class="intro-overlay" id="intro-overlay">
+            <div class="intro-logo">
+                AI DIMENSION<br>ESTIMATOR
+            </div>
+            <div class="intro-subtitle">
+                Next-Generation Analysis Platform
+            </div>
+            <div class="loading-bar">
+                <div class="loading-progress" id="loading-progress"></div>
+            </div>
+        </div>
+        
+        <script>
+        // Start loading animation
+        setTimeout(function() {
+            document.getElementById('loading-progress').style.width = '100%';
+        }, 500);
+        
+        // Fade out intro
+        setTimeout(function() {
+            var intro = document.getElementById('intro-overlay');
+            if (intro) {
+                intro.classList.add('fade-out');
+                setTimeout(function() {
+                    intro.style.display = 'none';
+                }, 1000);
+            }
+        }, 3000);
+        </script>
+        """, unsafe_allow_html=True)
+    
+    # Wait for intro to finish
+    time.sleep(4)
+    intro_placeholder.empty()
+    st.session_state.intro_shown = True
+    st.rerun()
 
 # Helper functions
 def calculate_dimensions(bbox, pixels_per_cm):
@@ -122,162 +517,108 @@ def calculate_dimensions(bbox, pixels_per_cm):
         "volume_cm3": round(volume_cm3, 2)
     }
 
-def create_3d_hologram(mask, bbox, dimensions):
-    """Create real 3D object shape from mask and dimensions"""
+def create_enhanced_3d_hologram(bbox, dimensions):
+    """Create enhanced 3D hologram visualization"""
     if not plotly_available:
         return None
     
     try:
-        # Get mask points
-        if mask is not None:
-            # Find contour points from mask
-            contours = cv2.findContours(mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0]
-            if contours:
-                # Get the largest contour
-                largest_contour = max(contours, key=cv2.contourArea)
-                # Simplify contour
-                epsilon = 0.02 * cv2.arcLength(largest_contour, True)
-                simplified_contour = cv2.approxPolyDP(largest_contour, epsilon, True)
-                
-                # Extract x, y coordinates
-                contour_points = simplified_contour.reshape(-1, 2)
-                x_coords = contour_points[:, 0]
-                y_coords = contour_points[:, 1]
-            else:
-                # Fallback to bounding box
-                x1, y1, x2, y2 = bbox
-                x_coords = np.array([x1, x2, x2, x1, x1])
-                y_coords = np.array([y1, y1, y2, y2, y1])
-        else:
-            # Use bounding box
-            x1, y1, x2, y2 = bbox
-            x_coords = np.array([x1, x2, x2, x1, x1])
-            y_coords = np.array([y1, y1, y2, y2, y1])
+        w, h, d = dimensions['width_cm'], dimensions['height_cm'], dimensions['depth_cm']
         
-        # Scale coordinates to actual dimensions
-        width_cm, height_cm, depth_cm = dimensions['width_cm'], dimensions['height_cm'], dimensions['depth_cm']
-        
-        # Normalize coordinates
-        x_norm = (x_coords - x_coords.min()) / (x_coords.max() - x_coords.min()) * width_cm
-        y_norm = (y_coords - y_coords.min()) / (y_coords.max() - y_coords.min()) * height_cm
-        
-        # Create 3D shape by extruding 2D contour
         fig = go.Figure()
         
-        # Bottom face (z=0)
-        fig.add_trace(go.Scatter3d(
-            x=x_norm, y=y_norm, z=np.zeros(len(x_norm)),
-            mode='lines+markers',
-            line=dict(color='cyan', width=8),
-            marker=dict(size=6, color='cyan'),
-            name='Bottom Face',
-            showlegend=False
-        ))
+        # Create 3D box with proper edges
+        # Define all vertices of the box
+        vertices_x = [0, w, w, 0, 0, w, w, 0]
+        vertices_y = [0, 0, h, h, 0, 0, h, h]
+        vertices_z = [0, 0, 0, 0, d, d, d, d]
         
-        # Top face (z=depth)
-        fig.add_trace(go.Scatter3d(
-            x=x_norm, y=y_norm, z=np.full(len(x_norm), depth_cm),
-            mode='lines+markers',
-            line=dict(color='yellow', width=8),
-            marker=dict(size=6, color='yellow'),
-            name='Top Face',
-            showlegend=False
-        ))
+        # Define edges of the box
+        edges = [
+            # Bottom face edges
+            [0, 1], [1, 2], [2, 3], [3, 0],
+            # Top face edges  
+            [4, 5], [5, 6], [6, 7], [7, 4],
+            # Vertical edges
+            [0, 4], [1, 5], [2, 6], [3, 7]
+        ]
         
-        # Vertical edges connecting bottom and top
-        for i in range(len(x_norm)-1):  # -1 to avoid duplicate of first point
+        # Draw edges
+        for edge in edges:
+            start, end = edge
             fig.add_trace(go.Scatter3d(
-                x=[x_norm[i], x_norm[i]],
-                y=[y_norm[i], y_norm[i]],
-                z=[0, depth_cm],
+                x=[vertices_x[start], vertices_x[end]],
+                y=[vertices_y[start], vertices_y[end]],
+                z=[vertices_z[start], vertices_z[end]],
                 mode='lines',
-                line=dict(color='magenta', width=6),
+                line=dict(color='cyan', width=8),
                 showlegend=False
             ))
         
-        # Add some interior structure for better 3D effect
-        center_x, center_y = x_norm.mean(), y_norm.mean()
-        
-        # Center pillar
+        # Add corner points
         fig.add_trace(go.Scatter3d(
-            x=[center_x, center_x],
-            y=[center_y, center_y],
-            z=[0, depth_cm],
-            mode='lines+markers',
-            line=dict(color='orange', width=10),
-            marker=dict(size=8, color='orange'),
-            name=f'Object Center',
+            x=vertices_x,
+            y=vertices_y,
+            z=vertices_z,
+            mode='markers',
+            marker=dict(size=10, color='yellow', opacity=0.8),
+            name=f'Object ({w}×{h}×{d} cm)',
             showlegend=True
         ))
         
-        # Add cross-sections for depth visualization
-        for z_level in np.linspace(0, depth_cm, 5):
-            if z_level > 0 and z_level < depth_cm:
-                scale_factor = 0.7 + 0.3 * (z_level / depth_cm)  # Slight tapering effect
-                x_scaled = center_x + (x_norm - center_x) * scale_factor
-                y_scaled = center_y + (y_norm - center_y) * scale_factor
-                
-                fig.add_trace(go.Scatter3d(
-                    x=x_scaled, y=y_scaled, z=np.full(len(x_scaled), z_level),
-                    mode='lines',
-                    line=dict(color=f'rgba(0,255,255,{0.3 + 0.4 * z_level/depth_cm})', width=4),
-                    showlegend=False
-                ))
+        # Add center point for reference
+        center_x, center_y, center_z = w/2, h/2, d/2
+        fig.add_trace(go.Scatter3d(
+            x=[center_x],
+            y=[center_y], 
+            z=[center_z],
+            mode='markers',
+            marker=dict(size=15, color='red'),
+            name='Center Point',
+            showlegend=True
+        ))
         
         # Enhanced layout
         fig.update_layout(
             title={
-                'text': f"🌟 3D HOLOGRAPHIC RECONSTRUCTION",
+                'text': "🌟 3D HOLOGRAPHIC VISUALIZATION",
                 'x': 0.5,
-                'font': {'size': 24, 'color': 'white', 'family': 'Orbitron'}
+                'font': {'size': 20, 'color': 'white'}
             },
             scene=dict(
-                bgcolor='rgba(0,0,0,0.95)',
+                bgcolor='rgba(10,10,10,0.95)',
                 xaxis=dict(
                     title='Width (cm)',
                     gridcolor='rgba(0,212,255,0.3)',
-                    gridwidth=2,
-                    backgroundcolor='rgba(0,0,0,0)',
-                    color='white'
+                    color='white',
+                    backgroundcolor='rgba(0,0,0,0)'
                 ),
                 yaxis=dict(
                     title='Height (cm)',
                     gridcolor='rgba(139,92,246,0.3)',
-                    gridwidth=2,
-                    backgroundcolor='rgba(0,0,0,0)',
-                    color='white'
+                    color='white',
+                    backgroundcolor='rgba(0,0,0,0)'
                 ),
                 zaxis=dict(
                     title='Depth (cm)',
                     gridcolor='rgba(16,185,129,0.3)',
-                    gridwidth=2,
-                    backgroundcolor='rgba(0,0,0,0)',
-                    color='white'
-                ),
-                camera=dict(
-                    eye=dict(x=1.5, y=1.5, z=1.5),
-                    up=dict(x=0, y=0, z=1)
+                    color='white',
+                    backgroundcolor='rgba(0,0,0,0)'
                 )
             ),
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='white', family='Inter'),
-            margin=dict(l=0, r=0, t=60, b=0),
-            showlegend=True,
-            legend=dict(
-                bgcolor='rgba(26,26,26,0.8)',
-                bordercolor='rgba(0,212,255,0.5)',
-                borderwidth=1
-            )
+            font=dict(color='white'),
+            margin=dict(l=0, r=0, t=50, b=0)
         )
         
         return fig
         
     except Exception as e:
-        st.error(f"3D Reconstruction Error: {str(e)}")
+        st.error(f"3D Generation Error: {str(e)}")
         return None
 
-# Camera frame callback
+# Camera callback
 captured_frame = None
 
 def video_frame_callback(frame):
@@ -289,9 +630,7 @@ def video_frame_callback(frame):
 # Load model
 model = load_model()
 
-# Main content wrapper
-st.markdown('<div class="main-content">', unsafe_allow_html=True)
-
+# === MAIN CONTENT ===
 # Hero Section
 st.markdown("""
 <div class="hero-section">
@@ -300,7 +639,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Enhanced Status Grid
+# Status Grid
 st.markdown('<div class="status-grid">', unsafe_allow_html=True)
 
 col1, col2, col3, col4 = st.columns(4)
@@ -312,7 +651,7 @@ with col1:
         <div class="status-header">
             <div class="status-icon">🤖</div>
             <div>
-                <div class="status-title">Neural Network</div>
+                <div class="status-title">YOLO AI</div>
                 <div class="status-value">{yolo_status}</div>
             </div>
         </div>
@@ -326,7 +665,7 @@ with col2:
         <div class="status-header">
             <div class="status-icon">📹</div>
             <div>
-                <div class="status-title">Vision System</div>
+                <div class="status-title">OpenCV</div>
                 <div class="status-value">{opencv_status}</div>
             </div>
         </div>
@@ -340,7 +679,7 @@ with col3:
         <div class="status-header">
             <div class="status-icon">📡</div>
             <div>
-                <div class="status-title">Camera Feed</div>
+                <div class="status-title">Camera</div>
                 <div class="status-value">{camera_status}</div>
             </div>
         </div>
@@ -363,71 +702,94 @@ with col4:
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# System status
+# System Status
 if model:
-    st.success("🚀 **ALL SYSTEMS OPERATIONAL** - Ready for Advanced Analysis")
+    st.markdown('<div class="success-msg">🚀 <strong>ALL SYSTEMS OPERATIONAL</strong> - Ready for Analysis</div>', unsafe_allow_html=True)
 else:
-    st.error("🚨 **CRITICAL ERROR** - Neural Network Offline")
+    st.markdown('<div class="error-msg">🚨 <strong>SYSTEM ERROR</strong> - AI Network Offline</div>', unsafe_allow_html=True)
     st.stop()
 
-# Navigation Cards
+# Navigation
 st.markdown('<div class="nav-container">', unsafe_allow_html=True)
 
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    if st.button("🎥 CAMERA MODE", key="nav_cam", use_container_width=True):
+    camera_html = """
+    <div class="nav-btn" onclick="this.style.backgroundColor='#1a1a2e'">
+        <div class="nav-icon">📹</div>
+        <div class="nav-title">CAMERA MODE</div>
+        <div class="nav-description">Live video capture and real-time analysis</div>
+    </div>
+    """
+    st.markdown(camera_html, unsafe_allow_html=True)
+    if st.button("", key="camera_nav", help="Camera Mode"):
         if webrtc_available:
             st.session_state.mode = "camera"
             st.rerun()
         else:
-            st.error("❌ Camera system unavailable")
+            st.error("❌ Camera unavailable")
 
 with col2:
-    if st.button("📁 UPLOAD MODE", key="nav_upload", use_container_width=True):
+    upload_html = """
+    <div class="nav-btn" onclick="this.style.backgroundColor='#1a1a2e'">
+        <div class="nav-icon">📁</div>
+        <div class="nav-title">UPLOAD MODE</div>
+        <div class="nav-description">Static image processing and analysis</div>
+    </div>
+    """
+    st.markdown(upload_html, unsafe_allow_html=True)
+    if st.button("", key="upload_nav", help="Upload Mode"):
         st.session_state.mode = "upload"
         st.rerun()
 
 with col3:
-    if st.button("🏠 MISSION CONTROL", key="nav_home", use_container_width=True):
+    home_html = """
+    <div class="nav-btn" onclick="this.style.backgroundColor='#1a1a2e'">
+        <div class="nav-icon">🏠</div>
+        <div class="nav-title">MISSION CONTROL</div>
+        <div class="nav-description">System overview and status</div>
+    </div>
+    """
+    st.markdown(home_html, unsafe_allow_html=True)
+    if st.button("", key="home_nav", help="Home"):
         st.session_state.mode = "home"
         st.rerun()
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Main Content Sections
+# Main Content Based on Mode
 if st.session_state.mode == "home":
-    # Mission Control Dashboard
     st.markdown("""
     <div class="content-card">
-        <h2 style="color: #00d4ff; font-family: Orbitron; margin-bottom: 2rem;">🎯 MISSION CONTROL CENTER</h2>
+        <h2 style="color: #00d4ff; font-family: 'Orbitron'; margin-bottom: 2rem;">🎯 MISSION CONTROL CENTER</h2>
         
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-bottom: 2rem;">
             <div>
-                <h3 style="color: #8b5cf6;">🚀 CORE CAPABILITIES</h3>
+                <h3 style="color: #8b5cf6; margin-bottom: 1rem;">🚀 CORE CAPABILITIES</h3>
                 <ul style="color: #a1a1aa; line-height: 1.8;">
-                    <li>Advanced YOLOv8 Neural Network Detection</li>
-                    <li>Real-time Object Classification</li>
-                    <li>Precision Dimensional Analysis</li>
-                    <li>3D Holographic Reconstruction</li>
-                    <li>Multi-object Processing</li>
+                    <li>Advanced YOLOv8 Neural Network</li>
+                    <li>Real-time Object Detection</li>
+                    <li>Precision Measurement Analysis</li>
+                    <li>3D Holographic Visualization</li>
+                    <li>Multi-object Processing Support</li>
                 </ul>
             </div>
             
             <div>
-                <h3 style="color: #10b981;">📡 OPERATION MODES</h3>
+                <h3 style="color: #10b981; margin-bottom: 1rem;">📡 OPERATION MODES</h3>
                 <ul style="color: #a1a1aa; line-height: 1.8;">
                     <li><strong>Camera Mode:</strong> Live capture & analysis</li>
                     <li><strong>Upload Mode:</strong> Static image processing</li>
-                    <li><strong>Hologram Mode:</strong> 3D visualization</li>
                     <li><strong>Measurement:</strong> Precision calibration</li>
+                    <li><strong>3D Hologram:</strong> Advanced visualization</li>
                 </ul>
             </div>
         </div>
         
-        <div style="text-align: center; margin-top: 3rem; padding: 2rem; background: rgba(0,212,255,0.1); border-radius: 16px; border: 1px solid rgba(0,212,255,0.3);">
-            <h3 style="color: #00d4ff;">🎮 SELECT OPERATION MODE TO BEGIN ANALYSIS</h3>
-            <p style="color: #71717a; margin-top: 1rem;">Choose Camera Mode for live analysis or Upload Mode for image processing</p>
+        <div style="text-align: center; padding: 2rem; background: linear-gradient(135deg, rgba(0,212,255,0.1), rgba(139,92,246,0.1)); border-radius: 16px; border: 1px solid rgba(0,212,255,0.3);">
+            <h3 style="color: #00d4ff; margin-bottom: 1rem;">🎮 SELECT OPERATION MODE TO BEGIN</h3>
+            <p style="color: #71717a;">Choose Camera Mode for live analysis or Upload Mode for image processing</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -436,48 +798,37 @@ elif st.session_state.mode == "camera" and webrtc_available:
     col1, col2 = st.columns([3, 2])
     
     with col1:
-        st.markdown("""
-        <div class="content-card">
-            <h3 style="color: #00d4ff; font-family: Orbitron;">📹 LIVE SURVEILLANCE SYSTEM</h3>
-        """, unsafe_allow_html=True)
+        st.markdown("""<div class="content-card"><h3 style="color: #00d4ff;">📹 LIVE CAMERA FEED</h3>""", unsafe_allow_html=True)
         
-        # Enhanced camera stream
         ctx = webrtc_streamer(
-            key="advanced_camera",
+            key="camera_stream",
             mode=WebRtcMode.SENDRECV,
             rtc_configuration=RTCConfiguration({
                 "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
             }),
             video_frame_callback=video_frame_callback,
-            media_stream_constraints={
-                "video": {"width": 1920, "height": 1080, "frameRate": 30},
-                "audio": False
-            },
+            media_stream_constraints={"video": True, "audio": False},
             async_processing=False,
         )
         
         st.markdown('</div>', unsafe_allow_html=True)
     
     with col2:
-        st.markdown("""
-        <div class="content-card">
-            <h3 style="color: #8b5cf6;">🎛️ CAMERA CONTROL PANEL</h3>
-        """, unsafe_allow_html=True)
+        st.markdown("""<div class="content-card"><h3 style="color: #8b5cf6;">🎛️ CONTROLS</h3>""", unsafe_allow_html=True)
         
         if captured_frame is not None:
-            st.success("🟢 **FEED ACTIVE**")
-            st.info("📊 Resolution: HD 1080p")
-            st.info("🎯 AI Detection: Ready")
+            st.success("🟢 **CAMERA ACTIVE**")
+            st.info("📊 Feed: Real-time HD")
             
-            if st.button("📸 **CAPTURE TARGET**", key="capture_btn", use_container_width=True):
+            if st.button("📸 **CAPTURE TARGET**", key="capture_btn"):
                 st.session_state.captured_frame = captured_frame.copy()
                 st.session_state.selected_image = Image.fromarray(cv2.cvtColor(captured_frame, cv2.COLOR_BGR2RGB))
                 st.session_state.mode = "detected"
                 st.success("🎯 **TARGET ACQUIRED**")
                 st.rerun()
         else:
-            st.warning("🟡 **INITIALIZING FEED**")
-            st.info("⏳ Establishing connection...")
+            st.warning("🟡 **CONNECTING...**")
+            st.info("⏳ Initializing camera feed")
         
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -485,58 +836,36 @@ elif st.session_state.mode == "upload":
     col1, col2 = st.columns([3, 2])
     
     with col1:
-        st.markdown("""
-        <div class="content-card">
-            <h3 style="color: #00d4ff; font-family: Orbitron;">📁 IMAGE UPLOAD SYSTEM</h3>
-        """, unsafe_allow_html=True)
+        st.markdown("""<div class="content-card"><h3 style="color: #00d4ff;">📁 IMAGE UPLOAD</h3>""", unsafe_allow_html=True)
         
-        uploaded_file = st.file_uploader(
-            "Deploy Target Image for Analysis",
-            type=['jpg', 'jpeg', 'png', 'bmp', 'tiff'],
-            help="Upload high-resolution images for best results"
-        )
+        uploaded_file = st.file_uploader("Deploy Target Image", type=['jpg', 'jpeg', 'png'])
         
         if uploaded_file:
             image = Image.open(uploaded_file)
-            st.image(image, caption="🎯 Target Image Loaded", use_column_width=True)
+            st.image(image, caption="🎯 Target Loaded", use_column_width=True)
             st.session_state.selected_image = image
         
         st.markdown('</div>', unsafe_allow_html=True)
     
     with col2:
-        st.markdown("""
-        <div class="content-card">
-            <h3 style="color: #10b981;">📊 UPLOAD STATUS</h3>
-        """, unsafe_allow_html=True)
+        st.markdown("""<div class="content-card"><h3 style="color: #10b981;">📊 STATUS</h3>""", unsafe_allow_html=True)
         
         if uploaded_file:
             st.success("✅ **IMAGE LOADED**")
-            st.info(f"📏 Resolution: {st.session_state.selected_image.size}")
-            st.info("🎯 Ready for AI Analysis")
+            st.info(f"📏 Size: {st.session_state.selected_image.size}")
             
-            if st.button("🔍 **INITIATE ANALYSIS**", key="analyze_btn", use_container_width=True):
+            if st.button("🔍 **START ANALYSIS**", key="analyze_btn"):
                 st.session_state.mode = "detected"
                 st.rerun()
         else:
-            st.info("📁 **AWAITING DEPLOYMENT**")
-            st.markdown("""
-            **Supported Formats:**
-            - JPG, JPEG, PNG
-            - BMP, TIFF
-            - Max: 200MB
-            
-            **Recommendations:**
-            - High resolution preferred
-            - Clear object visibility
-            - Good lighting conditions
-            """)
+            st.info("📁 **READY FOR UPLOAD**")
+            st.markdown("**Formats:** JPG, PNG<br>**Max Size:** 200MB", unsafe_allow_html=True)
         
         st.markdown('</div>', unsafe_allow_html=True)
 
 elif st.session_state.mode == "detected":
     if st.session_state.selected_image:
-        with st.spinner("🔬 **AI NEURAL NETWORK PROCESSING...**"):
-            # Run AI detection
+        with st.spinner("🔬 **AI PROCESSING...**"):
             img_array = np.array(st.session_state.selected_image)
             results = model.predict(source=img_array, conf=0.4, verbose=False)
             
@@ -548,30 +877,18 @@ elif st.session_state.mode == "detected":
                     col1, col2 = st.columns([3, 2])
                     
                     with col1:
-                        st.markdown("""
-                        <div class="content-card">
-                            <h3 style="color: #00d4ff;">🎯 AI DETECTION ANALYSIS</h3>
-                        """, unsafe_allow_html=True)
+                        st.markdown("""<div class="content-card"><h3 style="color: #00d4ff;">🎯 DETECTION RESULTS</h3>""", unsafe_allow_html=True)
                         
-                        # Show detection results
                         annotated_img = result.plot()
-                        st.image(annotated_img, caption="🤖 Neural Network Detection Results", use_column_width=True)
+                        st.image(annotated_img, caption="🤖 AI Analysis", use_column_width=True)
                         st.markdown('</div>', unsafe_allow_html=True)
                     
                     with col2:
-                        st.markdown("""
-                        <div class="content-card">
-                            <h3 style="color: #8b5cf6;">🎮 TARGET SELECTION</h3>
-                        """, unsafe_allow_html=True)
+                        st.markdown("""<div class="content-card"><h3 style="color: #8b5cf6;">🎮 OBJECT SELECTION</h3>""", unsafe_allow_html=True)
                         
-                        st.success(f"🎯 **{len(result.boxes)} OBJECTS DETECTED**")
+                        st.success(f"🎯 **{len(result.boxes)} OBJECTS FOUND**")
                         
-                        # Object selection
-                        object_names = []
-                        for cls in result.boxes.cls:
-                            class_id = int(cls.item())
-                            object_names.append(model.names[class_id])
-                        
+                        object_names = [model.names[int(cls.item())] for cls in result.boxes.cls]
                         unique_objects = list(set(object_names))
                         selected_obj = st.selectbox("🎯 **SELECT TARGET**", unique_objects)
                         
@@ -579,34 +896,26 @@ elif st.session_state.mode == "detected":
                             selected_idx = object_names.index(selected_obj)
                             confidence = result.boxes.conf[selected_idx]
                             
-                            # Store selected object mask for 3D reconstruction
-                            if hasattr(result, 'masks') and result.masks is not None:
-                                st.session_state.selected_object_mask = result.masks.data[selected_idx].cpu().numpy()
-                            
-                            # Object classification
-                            biological = ['person', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe']
+                            biological = ['person', 'cat', 'dog', 'horse', 'sheep', 'cow']
                             category = "🧬 BIOLOGICAL" if selected_obj.lower() in biological else "⚙️ MECHANICAL"
                             
-                            st.markdown(f"**Classification:** {category}")
-                            st.markdown(f"**AI Confidence:** {confidence:.1%}")
+                            st.markdown(f"**Type:** {category}")
+                            st.markdown(f"**Confidence:** {confidence:.1%}")
                             
                             st.markdown("---")
-                            st.markdown("### 📏 PRECISION CALIBRATION")
+                            st.markdown("### 📏 CALIBRATION")
                             
-                            ref_width_cm = st.number_input("Reference Width (cm)", min_value=0.1, value=10.0, step=0.1)
-                            ref_width_px = st.number_input("Reference Pixels", min_value=1, value=100, step=1)
+                            ref_width_cm = st.number_input("Reference Width (cm)", min_value=0.1, value=10.0)
+                            ref_width_px = st.number_input("Reference Pixels", min_value=1, value=100)
                             
-                            if st.button("📐 **EXECUTE MEASUREMENT**", key="measure_btn", use_container_width=True):
-                                try:
-                                    pixels_per_cm = ref_width_px / ref_width_cm
-                                    bbox = result.boxes.xyxy[selected_idx].cpu().numpy()
-                                    dims = calculate_dimensions(bbox, pixels_per_cm)
-                                    st.session_state.dimensions = dims
-                                    st.session_state.mode = "measured"
-                                    st.success("✅ **MEASUREMENT COMPLETE**")
-                                    st.rerun()
-                                except Exception as e:
-                                    st.error(f"❌ Error: {str(e)}")
+                            if st.button("📐 **MEASURE**", key="measure_btn"):
+                                pixels_per_cm = ref_width_px / ref_width_cm
+                                bbox = result.boxes.xyxy[selected_idx].cpu().numpy()
+                                dims = calculate_dimensions(bbox, pixels_per_cm)
+                                st.session_state.dimensions = dims
+                                st.session_state.mode = "measured"
+                                st.success("✅ **COMPLETE**")
+                                st.rerun()
                         
                         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -614,49 +923,23 @@ elif st.session_state.mode == "measured":
     if st.session_state.dimensions:
         dims = st.session_state.dimensions
         
-        # Success message
-        st.markdown("""
-        <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1)); border: 2px solid #10b981; border-radius: 16px; padding: 2rem; margin: 2rem 0; text-align: center;">
-            <h2 style="color: #10b981; margin: 0;">🎯 DIMENSIONAL ANALYSIS COMPLETE</h2>
-            <p style="color: #71717a; margin: 0.5rem 0 0;">Advanced measurement protocol executed successfully</p>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown("""<div class="success-msg">🎯 <strong>MEASUREMENT ANALYSIS COMPLETE</strong></div>""", unsafe_allow_html=True)
         
-        # Metrics Display
-        st.markdown('<div class="metrics-container">', unsafe_allow_html=True)
+        # Metrics
+        st.markdown('<div class="metrics-grid">', unsafe_allow_html=True)
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{dims['width_cm']}</div>
-                <div class="metric-label">WIDTH (CM)</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<div class="metric-card"><div class="metric-value">{dims['width_cm']}</div><div class="metric-label">WIDTH (CM)</div></div>""", unsafe_allow_html=True)
         
         with col2:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{dims['height_cm']}</div>
-                <div class="metric-label">HEIGHT (CM)</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<div class="metric-card"><div class="metric-value">{dims['height_cm']}</div><div class="metric-label">HEIGHT (CM)</div></div>""", unsafe_allow_html=True)
         
         with col3:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{dims['depth_cm']}</div>
-                <div class="metric-label">DEPTH (CM)</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<div class="metric-card"><div class="metric-value">{dims['depth_cm']}</div><div class="metric-label">DEPTH (CM)</div></div>""", unsafe_allow_html=True)
         
         with col4:
-            st.markdown(f"""
-            <div class="metric-card">
-                <div class="metric-value">{dims['volume_cm3']}</div>
-                <div class="metric-label">VOLUME (CM³)</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f"""<div class="metric-card"><div class="metric-value">{dims['volume_cm3']}</div><div class="metric-label">VOLUME (CM³)</div></div>""", unsafe_allow_html=True)
         
         st.markdown('</div>', unsafe_allow_html=True)
         
@@ -664,41 +947,22 @@ elif st.session_state.mode == "measured":
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            if st.button("🌟 **HOLOGRAPHIC RECONSTRUCTION**", key="holo_btn", use_container_width=True):
-                with st.spinner("🎭 **GENERATING 3D HOLOGRAM...**"):
-                    try:
-                        if st.session_state.detection_results:
-                            result = st.session_state.detection_results
-                            selected_idx = 0  # Default to first detected object
-                            bbox = result.boxes.xyxy[selected_idx].cpu().numpy()
-                            mask = st.session_state.selected_object_mask
-                            
-                            fig = create_3d_hologram(mask, bbox, dims)
-                            
-                            if fig:
-                                st.markdown('<div class="hologram-container">', unsafe_allow_html=True)
-                                st.plotly_chart(fig, use_container_width=True)
-                                st.markdown('</div>', unsafe_allow_html=True)
-                                st.success("✨ **3D HOLOGRAM GENERATED SUCCESSFULLY**")
-                            else:
-                                st.error("❌ Hologram generation failed")
-                    except Exception as e:
-                        st.error(f"❌ Hologram Error: {str(e)}")
+            if st.button("🌟 **3D HOLOGRAM**", key="hologram_btn"):
+                with st.spinner("🎭 **GENERATING...**"):
+                    if st.session_state.detection_results:
+                        result = st.session_state.detection_results
+                        bbox = result.boxes.xyxy[0].cpu().numpy()
+                        fig = create_enhanced_3d_hologram(bbox, dims)
+                        if fig:
+                            st.plotly_chart(fig, use_container_width=True)
+                            st.success("✨ **HOLOGRAM COMPLETE**")
         
         with col2:
-            if st.button("📊 **ANALYSIS REPORT**", key="report_btn", use_container_width=True):
-                report_data = {
-                    "dimensions": dims,
-                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-                    "confidence": "High",
-                    "method": "AI-Enhanced Calibration"
-                }
-                
+            if st.button("📊 **REPORT**", key="report_btn"):
                 st.markdown(f"""
                 <div class="content-card">
-                    <h3 style="color: #00d4ff;">📋 DETAILED ANALYSIS REPORT</h3>
-                    <div style="background: rgba(0,0,0,0.3); padding: 1.5rem; border-radius: 12px; font-family: monospace;">
-                        <p><strong>TIMESTAMP:</strong> {report_data['timestamp']}</p>
+                    <h3 style="color: #00d4ff;">📋 ANALYSIS REPORT</h3>
+                    <div style="background: rgba(0,0,0,0.3); padding: 1.5rem; border-radius: 12px;">
                         <p><strong>DIMENSIONS:</strong></p>
                         <ul>
                             <li>Width: {dims['width_cm']} cm</li>
@@ -706,44 +970,25 @@ elif st.session_state.mode == "measured":
                             <li>Depth: {dims['depth_cm']} cm</li>
                             <li>Volume: {dims['volume_cm3']} cm³</li>
                         </ul>
-                        <p><strong>ANALYSIS STATUS:</strong> ✅ Complete</p>
-                        <p><strong>CONFIDENCE LEVEL:</strong> {report_data['confidence']}</p>
-                        <p><strong>METHOD:</strong> {report_data['method']}</p>
+                        <p><strong>STATUS:</strong> ✅ Complete</p>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
         
         with col3:
-            if st.button("🔄 **NEW ANALYSIS**", key="new_btn", use_container_width=True):
-                # Reset all states
+            if st.button("🔄 **NEW ANALYSIS**", key="new_btn"):
                 st.session_state.mode = "home"
                 st.session_state.detection_results = None
                 st.session_state.selected_image = None
                 st.session_state.dimensions = None
                 st.session_state.captured_frame = None
-                st.session_state.selected_object_mask = None
                 st.rerun()
 
-# Floating Action Buttons (only show on relevant pages)
-if st.session_state.mode in ["camera", "upload", "detected"]:
-    st.markdown("""
-    <div class="action-container">
-        <button class="floating-btn capture" title="Capture">📸</button>
-        <button class="floating-btn detect" title="Detect">🔍</button>
-        <button class="floating-btn measure" title="Measure">📐</button>
-        <button class="floating-btn hologram" title="Hologram">🌟</button>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Enhanced Footer
+# Footer
 st.markdown("""
-<div style="text-align: center; padding: 4rem 2rem 2rem; margin-top: 4rem; border-top: 1px solid #333;">
-    <h3 style="color: #00d4ff; font-family: Orbitron; margin-bottom: 1rem;">AI DIMENSION ESTIMATOR v3.0</h3>
-    <p style="color: #71717a; font-size: 1.1rem;">Next-Generation Analysis Platform | Powered by Advanced Neural Networks</p>
-    <p style="color: #8b5cf6; font-weight: 600; margin-top: 1rem;">
-        🎯 Deploy → 🔍 Detect → 📐 Analyze → 🌟 Visualize
-    </p>
+<div style="text-align: center; padding: 3rem 2rem 2rem; margin-top: 3rem; border-top: 1px solid #333;">
+    <h3 style="color: #00d4ff; font-family: 'Orbitron';">AI DIMENSION ESTIMATOR v3.0</h3>
+    <p style="color: #71717a;">Next-Generation Analysis Platform</p>
+    <p style="color: #8b5cf6; font-weight: 600;">🎯 Deploy → 🔍 Detect → 📐 Measure → 🌟 Visualize</p>
 </div>
 """, unsafe_allow_html=True)
-
-st.markdown('</div>', unsafe_allow_html=True)
