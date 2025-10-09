@@ -1,11 +1,14 @@
 import streamlit as st
+
+# CRITICAL: set_page_config MUST be the absolute first Streamlit command
+st.set_page_config(page_title="AI Dimension Estimator", layout="wide")
+
 import sys
 
-# Critical: Handle NumPy import first
+# Handle NumPy import
 try:
     import numpy as np
     numpy_available = True
-    st.success("✅ NumPy loaded successfully")
 except ImportError as e:
     st.error(f"❌ Critical NumPy error: {str(e)}")
     st.error("🚨 This is a system-level issue. Please restart the app.")
@@ -41,9 +44,6 @@ except ImportError as e:
     st.warning(f"⚠️ Plotly unavailable: {str(e)}")
     plotly_available = False
 
-# Configuration
-st.set_page_config(page_title="AI Dimension Estimator", layout="wide")
-
 # Model Loading
 @st.cache_resource
 def load_yolo_model():
@@ -51,7 +51,6 @@ def load_yolo_model():
         return None
     try:
         model = YOLO("yolov8n-seg.pt")
-        st.success("✅ YOLO model loaded")
         return model
     except Exception as e:
         st.error(f"❌ YOLO loading failed: {str(e)}")
@@ -86,7 +85,7 @@ def calculate_simple_dimensions(bbox, pixels_per_cm):
 # Main App
 st.title("📱 AI Dimension Estimator")
 
-# System Status
+# System Status (now after page config)
 st.info(f"**System Status:** NumPy: {'✅' if numpy_available else '❌'} | " +
         f"YOLO: {'✅' if yolo_available else '❌'} | " +
         f"OpenCV: {'✅' if opencv_available else '❌'}")
@@ -105,6 +104,8 @@ seg_model = load_yolo_model()
 if seg_model is None:
     st.error("❌ Failed to load YOLO model")
     st.stop()
+
+st.success("✅ All systems ready!")
 
 # Layout
 col1, col2 = st.columns([2, 1])
@@ -217,6 +218,41 @@ with col2:
                                 with col_b:
                                     st.metric("Depth", f"{dims['depth_cm']:.2f} cm")
                                     st.metric("Volume", f"{dims['volume_cm3']:.2f} cm³")
+                                
+                                # Basic 3D visualization
+                                if plotly_available:
+                                    if st.button("🌟 SHOW 3D VIEW", type="secondary"):
+                                        try:
+                                            import plotly.graph_objects as go
+                                            
+                                            # Create simple 3D box representation
+                                            w, h, d = dims['width_cm'], dims['height_cm'], dims['depth_cm']
+                                            
+                                            # Define box vertices
+                                            x = [0, w, w, 0, 0, w, w, 0]
+                                            y = [0, 0, h, h, 0, 0, h, h]
+                                            z = [0, 0, 0, 0, d, d, d, d]
+                                            
+                                            # Create 3D scatter plot
+                                            fig = go.Figure(data=go.Scatter3d(
+                                                x=x, y=y, z=z,
+                                                mode='markers+lines',
+                                                marker=dict(size=8, color='cyan'),
+                                                name=f'{selected_obj} ({w}×{h}×{d} cm)'
+                                            ))
+                                            
+                                            fig.update_layout(
+                                                title=f"3D View: {selected_obj}",
+                                                scene=dict(
+                                                    xaxis_title="Width (cm)",
+                                                    yaxis_title="Height (cm)",
+                                                    zaxis_title="Depth (cm)"
+                                                )
+                                            )
+                                            
+                                            st.plotly_chart(fig, use_container_width=True)
+                                        except Exception as e:
+                                            st.error(f"3D view error: {str(e)}")
                                 
                             except Exception as e:
                                 st.error(f"Measurement error: {str(e)}")
